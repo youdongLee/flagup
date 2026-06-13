@@ -2,7 +2,7 @@
 // ⚠️ 사업자 정보(운영자명/연락처)는 실제 값으로 채우고, 출시 전 법률 검토를 권장합니다.
 
 const SERVICE = '청기백기 순발력 랭킹전';
-const OPERATOR = '[운영자명]'; // TODO: 실제 사업자/운영자명으로 교체
+const OPERATOR = '커넥트올';
 const CONTACT = 'jameslee0206@gmail.com';
 const EFFECTIVE = '2026년 6월 14일';
 
