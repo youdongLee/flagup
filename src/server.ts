@@ -33,6 +33,28 @@ export async function getUuid(): Promise<string> {
   return fresh;
 }
 
+// 토스 로그인 시 userKey, 아니면 기기 UUID를 서버 식별자로 사용
+const USERKEY_KEY = '@flagup/userkey_v1';
+
+export async function getStoredUserKey(): Promise<string | null> {
+  const v = await Storage.getItem(USERKEY_KEY).catch(() => null);
+  return v ? v : null;
+}
+
+export async function setStoredUserKey(userKey: string): Promise<void> {
+  await Storage.setItem(USERKEY_KEY, userKey).catch(() => {});
+}
+
+export async function clearStoredUserKey(): Promise<void> {
+  await Storage.setItem(USERKEY_KEY, '').catch(() => {});
+}
+
+// 서버 요청에 쓰는 활성 식별자: 로그인 시 'u:<userKey>', 아니면 기기 UUID
+export async function getActiveId(): Promise<string> {
+  const uk = await getStoredUserKey();
+  return uk ? `u:${uk}` : getUuid();
+}
+
 // 외부 API fetch 표준: AbortController 타임아웃 + 1회 재시도
 async function request<T>(path: string, init?: RequestInit, retry = 1): Promise<T | null> {
   if (!serverEnabled()) return null;
@@ -95,7 +117,7 @@ export async function submitScore(
   rounds: number,
   reactions: number[],
 ): Promise<SubmitResponse | null> {
-  const uuid = await getUuid();
+  const uuid = await getActiveId();
   const sig = sign([uuid, rounds, reactions.join(',')]);
   return request<SubmitResponse>('/v1/score', {
     method: 'POST',
@@ -105,12 +127,12 @@ export async function submitScore(
 }
 
 export async function fetchLeaderboard(): Promise<LeaderboardResponse | null> {
-  const uuid = await getUuid();
+  const uuid = await getActiveId();
   return request<LeaderboardResponse>(`/v1/leaderboard?uuid=${encodeURIComponent(uuid)}`);
 }
 
 export async function fetchReward(): Promise<RewardResponse | null> {
-  const uuid = await getUuid();
+  const uuid = await getActiveId();
   return request<RewardResponse>(`/v1/reward?uuid=${encodeURIComponent(uuid)}`);
 }
 
@@ -121,7 +143,7 @@ export interface ClaimedReward {
 }
 
 export async function claimReward(): Promise<{ ok: boolean; total: number; rewards: ClaimedReward[] } | null> {
-  const uuid = await getUuid();
+  const uuid = await getActiveId();
   const sig = sign([uuid, 'claim']);
   return request<{ ok: boolean; total: number; rewards: ClaimedReward[] }>('/v1/claim', {
     method: 'POST',
@@ -132,7 +154,7 @@ export async function claimReward(): Promise<{ ok: boolean; total: number; rewar
 
 // 토스포인트 지급 실패 시 방금 claim한 주를 미수령으로 되돌린다 (재수령 가능)
 export async function unclaimReward(weeks: string[]): Promise<void> {
-  const uuid = await getUuid();
+  const uuid = await getActiveId();
   const sig = sign([uuid, 'unclaim']);
   await request('/v1/unclaim', {
     method: 'POST',
@@ -145,4 +167,38 @@ export async function unclaimReward(weeks: string[]): Promise<void> {
 // 성공은 { key } 형태, 실패는 { errorCode, message } / 'ERROR' / undefined.
 export function isGrantSuccess(result: unknown): boolean {
   return !!result && typeof result === 'object' && 'key' in (result as object);
+}
+
+// ── 토스 로그인(방식 B) ──────────────────────────────────────────
+// 인가코드를 서버로 보내 userKey 획득 + 기기 데이터 이관 + 지갑 복원
+export async function loginExchange(
+  authorizationCode: string,
+  referrer: string,
+  localCoins: number,
+  localExchanged: number,
+): Promise<{ userKey: string; coins: number; totalExchanged: number } | null> {
+  const deviceId = await getUuid();
+  const res = await request<{ ok: boolean; userKey: number; coins: number; totalExchanged: number }>(
+    '/v1/login',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ authorizationCode, referrer, deviceId, localCoins, localExchanged }),
+    },
+  );
+  if (!res || !res.ok) return null;
+  await setStoredUserKey(String(res.userKey));
+  return { userKey: String(res.userKey), coins: res.coins, totalExchanged: res.totalExchanged };
+}
+
+// 코인 잔액을 서버 지갑에 동기화 (로그인 상태에서만 동작, 실패해도 무시)
+export async function syncWallet(coins: number, totalExchanged: number): Promise<void> {
+  const uk = await getStoredUserKey();
+  if (!uk) return;
+  const sig = sign([`u:${uk}`, 'wallet', coins]);
+  await request('/v1/wallet/sync', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userKey: uk, coins, totalExchanged, sig }),
+  });
 }

@@ -26,6 +26,9 @@ const MAX_ROUNDS = 200;
 const REACTION_MIN = 80;
 const REACTION_MAX = 6000;
 
+// 토스 로그인(방식 B) 파트너 API
+const TOSS_API = 'https://apps-in-toss-api.toss.im';
+
 // 주간 보상표 — 토스포인트(원) 직접 지급액. 앱 data/commands.ts RANK_REWARDS와 동일하게 유지
 function rewardForRank(rank) {
   if (rank === 1) return 1000;
@@ -306,6 +309,107 @@ async function settleWeek(env, week) {
   }
 }
 
+// ── 토스 로그인(방식 B) ──────────────────────────────────────────
+// 인가코드 → accessToken
+async function tossExchangeToken(authorizationCode, referrer) {
+  const r = await fetch(`${TOSS_API}/api-partner/v1/apps-in-toss/user/oauth2/generate-token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ authorizationCode, referrer }),
+  });
+  const j = await r.json().catch(() => null);
+  return j?.resultType === 'SUCCESS' ? j.success.accessToken : null;
+}
+
+// accessToken → userKey (비암호화 반환)
+async function tossUserKey(accessToken) {
+  const r = await fetch(`${TOSS_API}/api-partner/v1/apps-in-toss/user/oauth2/login-me`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  const j = await r.json().catch(() => null);
+  return j?.resultType === 'SUCCESS' ? j.success.userKey : null;
+}
+
+// 로그인: 인가코드 → userKey, 기기(deviceId) 데이터를 userKey로 이관, 지갑 복원(max)
+async function handleLogin(request, env) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ ok: false }, 400);
+  }
+  const { authorizationCode, referrer, deviceId, localCoins, localExchanged } = body ?? {};
+  if (typeof authorizationCode !== 'string' || typeof referrer !== 'string') return json({ ok: false }, 400);
+
+  const accessToken = await tossExchangeToken(authorizationCode, referrer);
+  if (!accessToken) return json({ ok: false, error: 'token_exchange_failed' }, 502);
+  const userKey = await tossUserKey(accessToken);
+  if (userKey == null) return json({ ok: false, error: 'userkey_failed' }, 502);
+  const id = `u:${userKey}`;
+
+  // 기기 식별자로 쌓인 랭킹/보상을 userKey로 이관 (로그아웃 플레이분 보존)
+  if (typeof deviceId === 'string' && deviceId && deviceId !== id) {
+    const devScores = await env.DB.prepare(
+      'SELECT week, nickname, best, avg_react, updated_at FROM scores WHERE uuid = ?',
+    ).bind(deviceId).all();
+    for (const row of devScores.results ?? []) {
+      const ex = await env.DB.prepare('SELECT best FROM scores WHERE week = ? AND uuid = ?')
+        .bind(row.week, id).first();
+      if (!ex) {
+        await env.DB.prepare(
+          'INSERT INTO scores (week, uuid, nickname, best, avg_react, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+        ).bind(row.week, id, row.nickname, row.best, row.avg_react, row.updated_at).run();
+      } else if (row.best > ex.best) {
+        await env.DB.prepare(
+          'UPDATE scores SET nickname = ?, best = ?, avg_react = ?, updated_at = ? WHERE week = ? AND uuid = ?',
+        ).bind(row.nickname, row.best, row.avg_react, row.updated_at, row.week, id).run();
+      }
+    }
+    await env.DB.prepare('DELETE FROM scores WHERE uuid = ?').bind(deviceId).run();
+
+    const devRewards = await env.DB.prepare(
+      'SELECT week, rank, amount FROM rewards WHERE uuid = ? AND claimed = 0',
+    ).bind(deviceId).all();
+    for (const r of devRewards.results ?? []) {
+      await env.DB.prepare(
+        'INSERT OR IGNORE INTO rewards (week, uuid, rank, amount, claimed) VALUES (?, ?, ?, ?, 0)',
+      ).bind(r.week, id, r.rank, r.amount).run();
+    }
+    await env.DB.prepare('DELETE FROM rewards WHERE uuid = ? AND claimed = 0').bind(deviceId).run();
+  }
+
+  // 지갑 복원: 로그인 시점엔 코인 손실 방지를 위해 max(서버, 로컬)
+  const w = await env.DB.prepare('SELECT coins, total_exchanged FROM wallets WHERE id = ?').bind(id).first();
+  const coins = Math.max(w?.coins ?? 0, Math.max(0, Number(localCoins) || 0));
+  const totalExchanged = Math.max(w?.total_exchanged ?? 0, Math.max(0, Number(localExchanged) || 0));
+  await env.DB.prepare(
+    'INSERT INTO wallets (id, coins, total_exchanged, updated_at) VALUES (?, ?, ?, ?) ' +
+    'ON CONFLICT(id) DO UPDATE SET coins = excluded.coins, total_exchanged = excluded.total_exchanged, updated_at = excluded.updated_at',
+  ).bind(id, coins, totalExchanged, Date.now()).run();
+
+  return json({ ok: true, userKey, coins, totalExchanged });
+}
+
+// 지갑 동기화: 클라이언트가 권위(last-write-wins). 서명 필수.
+async function handleWalletSync(request, env) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ ok: false }, 400);
+  }
+  const { userKey, coins, totalExchanged, sig } = body ?? {};
+  if (userKey == null || !Number.isInteger(coins) || coins < 0) return json({ ok: false }, 400);
+  const id = `u:${userKey}`;
+  const expected = await sha256Hex(`${env.APP_SECRET}|${id}|wallet|${coins}`);
+  if (sig !== expected) return json({ ok: false }, 403);
+  await env.DB.prepare(
+    'INSERT INTO wallets (id, coins, total_exchanged, updated_at) VALUES (?, ?, ?, ?) ' +
+    'ON CONFLICT(id) DO UPDATE SET coins = excluded.coins, total_exchanged = excluded.total_exchanged, updated_at = excluded.updated_at',
+  ).bind(id, coins, Math.max(0, Number(totalExchanged) || 0), Date.now()).run();
+  return json({ ok: true, coins });
+}
+
 export default {
   async fetch(request, env) {
     if (request.method === 'OPTIONS') return new Response(null, { headers: CORS });
@@ -316,6 +420,8 @@ export default {
       if (url.pathname === '/v1/reward' && request.method === 'GET') return await handleReward(request, env);
       if (url.pathname === '/v1/claim' && request.method === 'POST') return await handleClaim(request, env);
       if (url.pathname === '/v1/unclaim' && request.method === 'POST') return await handleUnclaim(request, env);
+      if (url.pathname === '/v1/login' && request.method === 'POST') return await handleLogin(request, env);
+      if (url.pathname === '/v1/wallet/sync' && request.method === 'POST') return await handleWalletSync(request, env);
       if (url.pathname === '/terms' && request.method === 'GET') return html(TERMS_HTML);
       if (url.pathname === '/privacy' && request.method === 'GET') return html(PRIVACY_HTML);
       if (url.pathname === '/') return json({ ok: true, service: 'flagup-api' });

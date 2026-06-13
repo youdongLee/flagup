@@ -19,6 +19,14 @@ CREATE TABLE IF NOT EXISTS rewards (
   PRIMARY KEY (week, uuid)
 );
 
+-- 토스 로그인(방식 B) 지갑: 코인 잔액을 userKey 기준으로 보관해 기기 변경 시 복원
+CREATE TABLE IF NOT EXISTS wallets (
+  id TEXT PRIMARY KEY,             -- 'u:' + userKey
+  coins INTEGER NOT NULL DEFAULT 0,
+  total_exchanged INTEGER NOT NULL DEFAULT 0,
+  updated_at INTEGER NOT NULL DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS rl (
   uuid TEXT NOT NULL,
   day TEXT NOT NULL,

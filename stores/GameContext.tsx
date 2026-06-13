@@ -1,5 +1,7 @@
 import { Storage } from '@apps-in-toss/framework';
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { getStoredUserKey, syncWallet } from '../src/server';
+import { tossLogin } from '../src/login';
 import {
   AD_PLAYS_PER_DAY,
   CHALLENGES,
@@ -119,6 +121,9 @@ interface GameContextType {
   activatePass: (until: number) => Promise<void>;
   coinNoticeShown: boolean;
   markCoinNoticeShown: () => Promise<void>;
+  // 토스 로그인 (방식 B)
+  isLoggedIn: boolean;
+  loginAndRestore: () => Promise<boolean>;
   // dev
   devAddCoins: (n: number) => Promise<void>;
   devResetDaily: () => Promise<void>;
@@ -133,6 +138,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [coinData, setCoinData] = useState<CoinData>(DEFAULT_COIN);
   const [daily, setDaily] = useState<DailyData>(defaultDaily(todayKey()));
   const [meta, setMeta] = useState<MetaData>(DEFAULT_META);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const currentDateKey = useRef(todayKey());
 
   const loadAll = useCallback(async () => {
@@ -150,6 +156,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     loadAll();
+    getStoredUserKey().then((uk) => setIsLoggedIn(!!uk));
     // 60초마다 날짜 변경 감지 → 자정 이후 자동 리셋
     const dateTimer = setInterval(() => {
       const newKey = todayKey();
@@ -166,6 +173,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const saveCoins = useCallback(async (next: CoinData) => {
     setCoinData(next);
     await Storage.setItem(COINS_KEY, JSON.stringify(next)).catch(() => {});
+    // 로그인 상태면 서버 지갑에 동기화 (미로그인 시 no-op, 실패 무시)
+    void syncWallet(next.coins, next.totalExchanged);
   }, []);
 
   const readCoins = useCallback(async (): Promise<CoinData> => {
@@ -287,6 +296,18 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     await saveMeta({ ...m, coinNoticeShown: true });
   }, [readMeta, saveMeta]);
 
+  // ----- 토스 로그인 (방식 B) -----
+
+  // 로그인 후 서버 지갑(코인)을 복원해 로컬에 반영. 성공 시 true.
+  const loginAndRestore = useCallback(async (): Promise<boolean> => {
+    const cur = await readCoins();
+    const res = await tossLogin(cur.coins, cur.totalExchanged);
+    if (!res) return false;
+    await saveCoins({ ...cur, coins: res.coins, totalExchanged: res.totalExchanged });
+    setIsLoggedIn(true);
+    return true;
+  }, [readCoins, saveCoins]);
+
   // ----- dev -----
 
   const devAddCoins = useCallback(async (n: number) => addCoins(n), [addCoins]);
@@ -345,6 +366,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         activatePass,
         coinNoticeShown: meta.coinNoticeShown,
         markCoinNoticeShown,
+        isLoggedIn,
+        loginAndRestore,
         devAddCoins,
         devResetDaily,
         devAddTotalPlays,

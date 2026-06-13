@@ -5,6 +5,7 @@ import React, { useRef, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { BANNER_SUB, IMAGE_AD, PROMO_EXCHANGE } from '../data/ads';
 import { isGrantSuccess } from '../src/server';
+import { LOGIN_ENABLED } from '../src/login';
 import { DAILY_EXCHANGE_LIMIT, EXCHANGE_UNIT, useGame } from '../stores/GameContext';
 
 export const Route = createRoute('/exchange', { component: ExchangePage });
@@ -14,15 +15,37 @@ const PRIMARY_LIGHT = '#E8F1FF';
 const BG = '#F4F7FB';
 
 function ExchangePage() {
-  const { coins, totalExchanged, exchangeCountToday, canExchange, exchangeCoins, addCoins } = useGame();
+  const { coins, totalExchanged, exchangeCountToday, canExchange, exchangeCoins, addCoins, isLoggedIn, loginAndRestore } = useGame();
   const [processing, setProcessing] = useState(false);
   const lock = useRef(false);
+
+  const promptLogin = () => {
+    Alert.alert(
+      '토스 로그인이 필요해요',
+      '로그인하면 기기를 바꿔도 코인이 유지되고, 토스포인트로 교환할 수 있어요.',
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '토스 로그인',
+          onPress: async () => {
+            const ok = await loginAndRestore();
+            if (!ok) Alert.alert('로그인하지 못했어요', '잠시 후 다시 시도해 주세요.');
+          },
+        },
+      ],
+    );
+  };
 
   const notEnoughCoins = coins < EXCHANGE_UNIT;
   const limitReached = exchangeCountToday >= DAILY_EXCHANGE_LIMIT;
 
   const onExchange = async () => {
     if (lock.current || processing) return;
+    // 토스 로그인 활성화 시, 교환 전 로그인 필요 (현금화 직전이 로그인 권유 시점)
+    if (LOGIN_ENABLED && !isLoggedIn) {
+      promptLogin();
+      return;
+    }
     lock.current = true;
     setProcessing(true);
     try {
