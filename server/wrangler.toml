@@ -1,0 +1,13 @@
+name = "flagup-api"
+main = "src/index.js"
+compatibility_date = "2026-01-01"
+
+# 매주 월요일 00:00 KST (= 일요일 15:00 UTC) 지난주 랭킹 정산
+# 주의: Cloudflare 크론은 요일 숫자 0(일요일)을 거부 — SUN 표기 사용
+[triggers]
+crons = ["0 15 * * SUN"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "flagup"
+database_id = "773014ae-7760-43f9-8e38-3edeabbba696"

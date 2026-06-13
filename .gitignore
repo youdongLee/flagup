@@ -1,0 +1,19 @@
+# dependencies
+node_modules/
+server/node_modules/
+
+# build output
+*.ait
+.granite/
+dist/
+
+# secrets / local
+src/secret.ts
+.secrets.json
+.dev.vars
+.env
+.wrangler/
+
+# OS / editor
+.DS_Store
+Thumbs.db
