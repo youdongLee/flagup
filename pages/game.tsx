@@ -272,12 +272,9 @@ function GamePage() {
             </View>
             <View style={s.rewardRow}>
               <Text style={s.rewardLabel}>주간 랭킹 TOP 10</Text>
-              <Text style={s.rewardValue}>토스포인트 100~1,000원</Text>
+              <Text style={s.rewardValue}>+100~300코인</Text>
             </View>
-            <Text style={s.rewardNote}>
-              최고기록 보너스는 갱신한 만큼만 더 받아요 (하루 최대 5코인){'\n'}
-              랭킹 보상은 코인이 아닌 토스포인트로 바로 지급돼요
-            </Text>
+            <Text style={s.rewardNote}>최고기록 보너스는 갱신한 만큼만 더 받아요 (하루 최대 5코인)</Text>
           </View>
 
           <View style={s.imageAdWrap}>

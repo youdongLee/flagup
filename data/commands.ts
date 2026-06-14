@@ -150,10 +150,9 @@ export const AD_PLAYS_PER_DAY = 10;
 export const COIN_PLAYS_PER_DAY = 10;
 export const COIN_PLAY_COST = 3;
 
-// 주간 랭킹 보상 — 토스포인트(원) 직접 지급. 서버 rewardForRank와 동일 값 유지 (표시용)
+// 주간 랭킹 보상 — 인앱 코인 지급. 서버 rewardForRank와 동일 값 유지 (표시용)
 export const RANK_REWARDS = [
-  { from: 1, to: 1, won: 1000 },
-  { from: 2, to: 3, won: 500 },
-  { from: 4, to: 5, won: 300 },
-  { from: 6, to: 10, won: 100 },
+  { from: 1, to: 1, coins: 300 },
+  { from: 2, to: 3, coins: 200 },
+  { from: 4, to: 10, coins: 100 },
 ];

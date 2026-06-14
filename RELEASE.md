@@ -58,20 +58,11 @@
 | 미션명 | 코인 100개를 토스포인트로 교환하기 |
 | 지급 금액 | 100원 (가변 아님) |
 
-**3-2. 주간 랭킹 보상용 → 순위 구간별 프로모션 4개 (신규)**
+**3-2. 주간 랭킹 보상 → 인앱 코인 (프로모션 아님)**
 
-각각 콘솔에 등록 후 `data/ads.ts`의 해당 상수로 교체. 지급 금액은 코드별 고정.
-
-| 순위 구간 | 지급액 | 코드 상수 |
-|---|---|---|
-| 1위 | 1,000원 | PROMO_RANK_1 |
-| 2~3위 | 500원 | PROMO_RANK_2_3 |
-| 4~5위 | 300원 | PROMO_RANK_4_5 |
-| 6~10위 | 100원 | PROMO_RANK_6_10 |
-
-- 주간 예산 합계 약 3,100원 (1000 + 500×2 + 300×2 + 100×5), 월 ~13,400원
-- 앱은 claim 응답의 각 보상 행을 `rankPromoCode(rank)`로 골라 개별 지급 (data/ads.ts)
-- 테스트 코드는 **샌드박스 아닌 토스앱(QR)** 에서 최소 1회 호출해야 승인 상태로 전환됨
+- 정책상 프로모션으로 랭킹 보상 적용 불가 → **인앱 코인으로 지급**(별도 프로모션 코드 불필요).
+- 1위 300코인 / 2~3위 200코인 / 4~10위 100코인. 서버 정산 후 랭킹 화면 "받기"로 수령 → addCoins.
+- 즉 랭킹 보상에는 콘솔 작업이 없음.
 
 > 서버 정산 보상표(server/src/index.js `rewardForRank`)와 앱 표시(data/commands.ts `RANK_REWARDS`)는 항상 동일하게 유지: 1위 1000 / 2~3위 500 / 4~5위 300 / 6~10위 100원.
 
@@ -88,7 +79,7 @@
 
 - [ ] granite.config.ts `brand.icon` URL 입력
 - [ ] data/ads.ts 광고 6슬롯 실코드 교체
-- [ ] data/ads.ts PROMO_EXCHANGE + PROMO_RANK_1/2_3/4_5/6_10 (5개) 라이브 코드 교체
+- [ ] data/ads.ts PROMO_EXCHANGE (교환용 1개) 라이브 코드 교체 — 랭킹은 코인 지급이라 프로모션 불필요
 - [ ] **pages/dev.tsx "패스 토글" 버튼 제거** (현재 보류 중 — 무료 패스 우회 경로)
 - [ ] **src/secret.ts 존재 확인** (git 미커밋. 없으면 빌드 실패 — src/secret.example.ts 복사 후 값 입력, 서버 wrangler secret APP_SECRET과 동일)
 - [ ] package.json 버전 범프 후 `npx ait build` (npm run build 금지 — exit 48 환경 이슈)

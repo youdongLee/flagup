@@ -12,18 +12,16 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { BANNER_SUB, rankPromoCode } from '../data/ads';
+import { BANNER_SUB } from '../data/ads';
 import { RANK_REWARDS } from '../data/commands';
 import { useGame } from '../stores/GameContext';
 import {
   claimReward,
   fetchLeaderboard,
   fetchReward,
-  isGrantSuccess,
   LeaderboardResponse,
   RewardResponse,
   serverEnabled,
-  unclaimReward,
 } from '../src/server';
 
 export const Route = createRoute('/ranking', { component: RankingPage });
@@ -32,7 +30,7 @@ const PRIMARY = '#1B64DA';
 const BG = '#F4F7FB';
 
 function RankingPage() {
-  const { nickname, setNickname } = useGame();
+  const { nickname, setNickname, addCoins } = useGame();
   const [board, setBoard] = useState<LeaderboardResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [reward, setReward] = useState<RewardResponse | null>(null);
@@ -71,52 +69,22 @@ function RankingPage() {
     claimLock.current = true;
     setClaiming(true);
     try {
-      // 서버에서 먼저 claimed 처리(권위 기록)해 중복 지급을 차단한 뒤 토스포인트를 지급한다.
+      // 서버에서 먼저 claimed 처리(권위 기록)해 중복 지급을 차단한 뒤 코인을 지급한다.
       const res = await claimReward();
-      if (!res || !res.ok || res.rewards.length === 0) {
+      if (!res || !res.ok || res.total <= 0) {
         Alert.alert('받을 보상이 없어요', '보상은 매주 월요일에 정산돼요.');
         return;
       }
+      await addCoins(res.total);
       setReward((prev) => (prev ? { ...prev, claimed: true } : prev));
-
-      // 순위 구간별 프로모션 코드로 각 주의 보상을 개별 지급.
-      // grantPromotionReward는 실패해도 throw하지 않으므로 반환값을 검사한다.
-      let granted = 0;
-      const failedWeeks: string[] = [];
-      for (const r of res.rewards) {
-        let ok = false;
-        try {
-          const result = await grantPromotionReward({
-            params: { promotionCode: rankPromoCode(r.rank), amount: r.amount },
-          });
-          ok = isGrantSuccess(result);
-        } catch {
-          ok = false;
-        }
-        if (ok) granted += r.amount;
-        else failedWeeks.push(r.week);
-      }
-
-      // 실패한 주는 롤백해 다시 받을 수 있게 한다.
-      if (failedWeeks.length > 0) {
-        await unclaimReward(failedWeeks);
-        setReward((prev) => (prev ? { ...prev, claimed: false } : prev));
-      }
-
-      if (failedWeeks.length === 0) {
-        Alert.alert('랭킹 보상 지급!', `지난주 랭킹 보상 토스포인트 ${granted.toLocaleString()}원을 받았어요.`);
-      } else if (granted > 0) {
-        Alert.alert('일부만 지급됐어요', `${granted.toLocaleString()}원이 지급됐고, 나머지는 보관돼요. 잠시 후 다시 시도해 주세요.`);
-      } else {
-        Alert.alert('지급에 실패했어요', '보상은 그대로 보관돼요. 잠시 후 다시 시도해 주세요.');
-      }
+      Alert.alert('랭킹 보상 지급!', `지난주 랭킹 보상 ${res.total.toLocaleString()}코인을 받았어요.`);
     } finally {
       setClaiming(false);
       claimLock.current = false;
     }
   };
 
-  const rewardAvailable = reward && reward.amount > 0 && !reward.claimed;
+  const rewardAvailable = reward && reward.amount > 0 && !reward.claimed; // amount = 코인 합계
 
   return (
     <View style={s.root}>
@@ -169,23 +137,23 @@ function RankingPage() {
               🏆 지난주 {reward!.rank}위 보상이 도착했어요!
             </Text>
             <Text style={s.rewardCta}>
-              {claiming ? '지급 중...' : `토스포인트 ${reward!.amount.toLocaleString()}원 받기`}
+              {claiming ? '지급 중...' : `+${reward!.amount.toLocaleString()}코인 받기`}
             </Text>
           </TouchableOpacity>
         )}
 
         {/* 보상 안내 */}
         <View style={s.infoCard}>
-          <Text style={s.infoTitle}>이번 주 랭킹 보상 (토스포인트)</Text>
+          <Text style={s.infoTitle}>이번 주 랭킹 보상</Text>
           <View style={s.infoRow}>
             {RANK_REWARDS.map((r) => (
               <View key={r.from} style={s.infoPill}>
                 <Text style={s.infoPillRank}>{r.from === r.to ? `${r.from}위` : `${r.from}~${r.to}위`}</Text>
-                <Text style={s.infoPillCoin}>{r.won.toLocaleString()}원</Text>
+                <Text style={s.infoPillCoin}>+{r.coins.toLocaleString()}코인</Text>
               </View>
             ))}
           </View>
-          <Text style={s.infoSub}>매주 월요일 0시에 지난주 순위로 토스포인트가 지급돼요</Text>
+          <Text style={s.infoSub}>매주 월요일 0시에 지난주 순위로 코인이 지급돼요</Text>
         </View>
 
         {/* 리더보드 */}

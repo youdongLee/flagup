@@ -29,11 +29,10 @@ const REACTION_MAX = 6000;
 // 토스 로그인(방식 B) 파트너 API
 const TOSS_API = 'https://apps-in-toss-api.toss.im';
 
-// 주간 보상표 — 토스포인트(원) 직접 지급액. 앱 data/commands.ts RANK_REWARDS와 동일하게 유지
+// 주간 보상표 — 인앱 코인 지급액. 앱 data/commands.ts RANK_REWARDS와 동일하게 유지
 function rewardForRank(rank) {
-  if (rank === 1) return 1000;
-  if (rank <= 3) return 500;
-  if (rank <= 5) return 300;
+  if (rank === 1) return 300;
+  if (rank <= 3) return 200;
   if (rank <= 10) return 100;
   return 0;
 }

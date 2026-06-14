@@ -99,7 +99,7 @@ function HomePage() {
             <Text style={s.menuEmoji}>🏆</Text>
             <View style={s.menuTexts}>
               <Text style={s.menuTitle}>주간 랭킹</Text>
-              <Text style={s.menuSub}>이번 주 상위 10명에게 토스포인트!</Text>
+              <Text style={s.menuSub}>이번 주 상위 10명에게 코인 보상!</Text>
             </View>
           </View>
           <Text style={s.menuArrow}>›</Text>

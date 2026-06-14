@@ -4,7 +4,7 @@ import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-nati
 
 export const Route = createRoute('/info', { component: InfoPage });
 
-export const APP_VERSION = '1.2.0';
+export const APP_VERSION = '1.2.1';
 
 const PRIMARY = '#1B64DA';
 const BG = '#F4F7FB';
@@ -48,9 +48,9 @@ function InfoPage() {
 
         <View style={s.card}>
           <Text style={s.sectionTitle}>랭킹 안내</Text>
-          <Text style={s.row}>• 주간 최고 라운드 기준으로 순위가 매겨져요</Text>
-          <Text style={s.row}>• 매주 월요일 0시에 초기화되고, 지난주 순위에 따라 토스포인트가 지급돼요</Text>
-          <Text style={s.row}>• 1위 1,000원 · 2~3위 500원 · 4~5위 300원 · 6~10위 100원</Text>
+          <Text style={s.row}>• 주간 최고 라운드 기준으로 순위가 매겨져요 (동점 시 평균 반응속도가 빠른 순)</Text>
+          <Text style={s.row}>• 매주 월요일 0시에 초기화되고, 지난주 순위에 따라 코인이 지급돼요</Text>
+          <Text style={s.row}>• 1위 300코인 · 2~3위 200코인 · 4~10위 100코인</Text>
           <Text style={s.row}>• 보상은 랭킹 화면에서 받기 버튼으로 수령해요</Text>
           <Text style={s.row}>• 비정상적인 기록은 사전 안내 없이 제외될 수 있어요</Text>
         </View>
