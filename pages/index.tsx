@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { AttendanceBoard } from '../components/AttendanceBoard';
 import { Flags } from '../components/Flags';
 import { BANNER_HOME, IMAGE_AD } from '../data/ads';
 import { CHALLENGES, INITIAL_FLAGS } from '../data/commands';
@@ -35,7 +36,6 @@ function HomePage() {
     passUntil,
     coinNoticeShown,
     markCoinNoticeShown,
-    attendedToday,
   } = useGame();
 
   const onShare = () => {
@@ -101,20 +101,6 @@ function HomePage() {
           </View>
         </View>
 
-        {/* 출석 체크 */}
-        <TouchableOpacity style={s.menuCard} onPress={() => navigation.navigate('/attendance')} activeOpacity={0.85}>
-          <View style={s.menuLeft}>
-            <Text style={s.menuEmoji}>📅</Text>
-            <View style={s.menuTexts}>
-              <Text style={s.menuTitle}>매일 출석 체크</Text>
-              <Text style={s.menuSub}>
-                {attendedToday ? '오늘 출석 완료! 내일 또 만나요' : '출석하고 1원 받기 (7일 연속 +5원)'}
-              </Text>
-            </View>
-          </View>
-          {attendedToday ? <Text style={s.menuArrow}>›</Text> : <View style={s.dot} />}
-        </TouchableOpacity>
-
         {/* 랭킹 */}
         <TouchableOpacity style={s.menuCard} onPress={() => navigation.navigate('/ranking')} activeOpacity={0.85}>
           <View style={s.menuLeft}>
@@ -164,6 +150,9 @@ function HomePage() {
         <View style={s.imageAdWrap}>
           <InlineAd adGroupId={IMAGE_AD} variant="expanded" impressFallbackOnMount />
         </View>
+
+        {/* 출석 현황판 — 홈 맨 아래 인라인 */}
+        <AttendanceBoard />
 
         <TouchableOpacity onPress={() => navigation.navigate('/info')} activeOpacity={0.6}>
           <Text style={s.footerTxt}>앱 정보</Text>

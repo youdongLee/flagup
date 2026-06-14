@@ -1,21 +1,19 @@
-import { InlineAd, loadFullScreenAd, showFullScreenAd } from '@apps-in-toss/framework';
+import { loadFullScreenAd, showFullScreenAd } from '@apps-in-toss/framework';
 import { grantPromotionReward } from '@apps-in-toss/native-modules';
-import { createRoute } from '@granite-js/react-native';
 import React, { useRef, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { AD_ATTEND_IDS, BANNER_SUB, IMAGE_AD, PROMO_ATTENDANCE } from '../data/ads';
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { AD_ATTEND_IDS, PROMO_ATTENDANCE } from '../data/ads';
 import { ATTENDANCE_DAILY_WON, ATTENDANCE_STREAK_BONUS_WON, ATTENDANCE_STREAK_LEN } from '../data/commands';
 import { isGrantSuccess } from '../src/server';
 import { useFallbackAd } from '../src/useFallbackAd';
 import { useGame } from '../stores/GameContext';
 
-export const Route = createRoute('/attendance', { component: AttendancePage });
-
 const PRIMARY = '#1B64DA';
 const PRIMARY_LIGHT = '#E8F1FF';
 const BG = '#F4F7FB';
 
-function AttendancePage() {
+// 홈 화면 하단에 인라인으로 노출되는 출석 현황판 (별도 페이지 진입 없이 바로 출석)
+export function AttendanceBoard() {
   const {
     attendedToday,
     attendClaimedToday,
@@ -35,7 +33,6 @@ function AttendancePage() {
   const filled = attendStreak;
   const todayIndex = attendedToday ? attendStreak - 1 : attendStreak;
 
-  // 1단계: 광고 시청 후 도장 찍기
   const doStamp = () => {
     const finish = async () => {
       const res = await stampAttendance();
@@ -76,7 +73,6 @@ function AttendancePage() {
     ]);
   };
 
-  // 2단계: 도장 눌러 일일 토스포인트 1원 수령
   const doClaimDaily = async () => {
     setBusy(true);
     try {
@@ -99,7 +95,6 @@ function AttendancePage() {
     }
   };
 
-  // 별도 CTA: 7일 연속 보너스 5원 수령
   const doClaimBonus = async () => {
     if (lock.current || busy) return;
     lock.current = true;
@@ -135,109 +130,80 @@ function AttendancePage() {
     }
   };
 
-  const todayBtnLabel = busy
+  const btnLabel = busy
     ? '처리 중...'
     : !attendedToday
     ? '광고 보고 오늘 도장 찍기'
     : !attendClaimedToday
     ? `토스포인트 ${ATTENDANCE_DAILY_WON}원 받기`
     : '오늘 출석 완료 ✓';
-
-  const todayBtnDisabled = busy || (attendedToday && attendClaimedToday);
+  const btnDisabled = busy || (attendedToday && attendClaimedToday);
 
   return (
-    <View style={s.root}>
-      <View style={s.bannerWrap}>
-        <InlineAd adGroupId={BANNER_SUB} variant="expanded" impressFallbackOnMount />
+    <View style={s.card}>
+      <Text style={s.title}>📅 매일 출석 체크</Text>
+      <Text style={s.sub}>광고 보고 도장 찍으면 1원, 7일 연속이면 보너스 5원!</Text>
+
+      <View style={s.daysRow}>
+        {Array.from({ length: ATTENDANCE_STREAK_LEN }).map((_, i) => {
+          const done = i < filled;
+          const isToday = i === todayIndex && !(attendedToday && attendClaimedToday);
+          const isBonus = i === ATTENDANCE_STREAK_LEN - 1;
+          const tappable = isToday && !busy;
+          return (
+            <TouchableOpacity
+              key={i}
+              style={[s.dayCell, done && s.dayCellDone, isToday && s.dayCellToday]}
+              onPress={tappable ? onTodayAction : undefined}
+              disabled={!tappable}
+              activeOpacity={0.8}
+            >
+              <Text style={[s.dayNum, done && s.dayNumDone]}>{i + 1}</Text>
+              <Text style={[s.dayWon, done && s.dayWonDone]}>{isBonus ? '+5원' : '1원'}</Text>
+              {done ? (
+                <Text style={s.dayCheck}>✓</Text>
+              ) : isToday ? (
+                <Text style={s.dayToday}>{!attendedToday ? '광고▶' : '받기'}</Text>
+              ) : (
+                <Text style={s.dayDot}>·</Text>
+              )}
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
-      <ScrollView style={s.scroll} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
-        <View style={s.headCard}>
-          <Text style={s.headEmoji}>📅</Text>
-          <Text style={s.headTitle}>매일 출석 체크</Text>
-          <Text style={s.headSub}>광고 보고 도장 찍으면 1원, 7일 연속이면 보너스 5원!</Text>
-        </View>
+      <TouchableOpacity
+        style={[s.actionBtn, btnDisabled && s.actionBtnDisabled]}
+        onPress={onTodayAction}
+        disabled={btnDisabled}
+        activeOpacity={0.85}
+      >
+        <Text style={s.actionBtnTxt}>{btnLabel}</Text>
+      </TouchableOpacity>
 
-        {/* 7일 출석판 */}
-        <View style={s.boardCard}>
-          <View style={s.daysRow}>
-            {Array.from({ length: ATTENDANCE_STREAK_LEN }).map((_, i) => {
-              const done = i < filled;
-              const isToday = i === todayIndex && !(attendedToday && attendClaimedToday);
-              const isBonus = i === ATTENDANCE_STREAK_LEN - 1;
-              const tappable = isToday && !busy;
-              return (
-                <TouchableOpacity
-                  key={i}
-                  style={[s.dayCell, done && s.dayCellDone, isToday && s.dayCellToday]}
-                  onPress={tappable ? onTodayAction : undefined}
-                  disabled={!tappable}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[s.dayNum, done && s.dayNumDone]}>{i + 1}</Text>
-                  <Text style={[s.dayWon, done && s.dayWonDone]}>{isBonus ? '+5원' : '1원'}</Text>
-                  {done ? (
-                    <Text style={s.dayCheck}>✓</Text>
-                  ) : isToday ? (
-                    <Text style={s.dayToday}>{!attendedToday ? '광고▶' : '받기'}</Text>
-                  ) : (
-                    <Text style={s.dayDot}>·</Text>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-          <Text style={s.streakTxt}>현재 {filled}일 연속 출석 중</Text>
-        </View>
-
-        {/* 7일 연속 보너스 별도 CTA */}
-        {attendBonusAvailable && (
-          <TouchableOpacity
-            style={[s.bonusCard, busy && s.bonusCardDisabled]}
-            onPress={doClaimBonus}
-            disabled={busy}
-            activeOpacity={0.85}
-          >
-            <Text style={s.bonusTitle}>🎉 7일 연속 출석 달성!</Text>
-            <Text style={s.bonusCta}>보너스 토스포인트 {ATTENDANCE_STREAK_BONUS_WON}원 받기</Text>
-          </TouchableOpacity>
-        )}
-
-        <View style={s.imageAdWrap}>
-          <InlineAd adGroupId={IMAGE_AD} variant="expanded" impressFallbackOnMount />
-        </View>
-      </ScrollView>
-
-      <View style={s.footer}>
+      {attendBonusAvailable && (
         <TouchableOpacity
-          style={[s.attendBtn, todayBtnDisabled && s.attendBtnDisabled]}
-          onPress={onTodayAction}
-          disabled={todayBtnDisabled}
+          style={[s.bonusCard, busy && s.bonusCardDisabled]}
+          onPress={doClaimBonus}
+          disabled={busy}
           activeOpacity={0.85}
         >
-          <Text style={s.attendBtnTxt}>{todayBtnLabel}</Text>
+          <Text style={s.bonusTitle}>🎉 7일 연속 출석 달성!</Text>
+          <Text style={s.bonusCta}>보너스 토스포인트 {ATTENDANCE_STREAK_BONUS_WON}원 받기</Text>
         </TouchableOpacity>
-      </View>
+      )}
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: BG },
-  bannerWrap: { overflow: 'hidden', backgroundColor: BG },
-  scroll: { flex: 1 },
-  content: { paddingTop: 12, paddingBottom: 24, paddingHorizontal: 16, gap: 12 },
-
-  headCard: { backgroundColor: '#fff', borderRadius: 18, padding: 22, alignItems: 'center', gap: 4 },
-  headEmoji: { fontSize: 32 },
-  headTitle: { fontSize: 18, fontWeight: '800', color: '#191F28' },
-  headSub: { fontSize: 13, color: '#6B7684', textAlign: 'center' },
-
-  boardCard: { backgroundColor: '#fff', borderRadius: 18, padding: 18, gap: 14 },
-  daysRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' },
+  card: { backgroundColor: '#fff', borderRadius: 18, padding: 18, gap: 12 },
+  title: { fontSize: 16, fontWeight: '800', color: '#191F28' },
+  sub: { fontSize: 12, color: '#8B95A1', marginTop: -6 },
+  daysRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'center' },
   dayCell: {
     width: '13%',
-    minWidth: 40,
+    minWidth: 38,
     aspectRatio: 0.78,
     backgroundColor: BG,
     borderRadius: 12,
@@ -247,33 +213,27 @@ const s = StyleSheet.create({
   },
   dayCellDone: { backgroundColor: PRIMARY_LIGHT },
   dayCellToday: { borderWidth: 2, borderColor: PRIMARY },
-  dayNum: { fontSize: 12, fontWeight: '700', color: '#8B95A1' },
+  dayNum: { fontSize: 11, fontWeight: '700', color: '#8B95A1' },
   dayNumDone: { color: PRIMARY },
-  dayWon: { fontSize: 10, color: '#B0B8C1' },
+  dayWon: { fontSize: 9, color: '#B0B8C1' },
   dayWonDone: { color: PRIMARY, fontWeight: '700' },
-  dayCheck: { fontSize: 12, color: PRIMARY, fontWeight: '800' },
+  dayCheck: { fontSize: 11, color: PRIMARY, fontWeight: '800' },
   dayToday: { fontSize: 9, color: PRIMARY, fontWeight: '800' },
-  dayDot: { fontSize: 12, color: '#D1D6DB' },
-  streakTxt: { fontSize: 13, color: '#4E5968', textAlign: 'center', fontWeight: '600' },
-
+  dayDot: { fontSize: 11, color: '#D1D6DB' },
+  actionBtn: { backgroundColor: PRIMARY, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  actionBtnDisabled: { backgroundColor: '#B0B8C1' },
+  actionBtnTxt: { color: '#fff', fontSize: 15, fontWeight: '800' },
   bonusCard: {
     backgroundColor: '#FFF8E1',
-    borderRadius: 16,
-    paddingVertical: 16,
-    paddingHorizontal: 18,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     alignItems: 'center',
-    gap: 4,
+    gap: 2,
     borderWidth: 1,
     borderColor: '#FFE082',
   },
   bonusCardDisabled: { opacity: 0.5 },
-  bonusTitle: { fontSize: 14, fontWeight: '800', color: '#7A5800' },
-  bonusCta: { fontSize: 15, fontWeight: '900', color: '#D18700' },
-
-  imageAdWrap: { overflow: 'hidden', borderRadius: 12 },
-
-  footer: { padding: 16, paddingBottom: 24, backgroundColor: BG },
-  attendBtn: { backgroundColor: PRIMARY, borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
-  attendBtnDisabled: { backgroundColor: '#B0B8C1' },
-  attendBtnTxt: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  bonusTitle: { fontSize: 13, fontWeight: '800', color: '#7A5800' },
+  bonusCta: { fontSize: 14, fontWeight: '900', color: '#D18700' },
 });
