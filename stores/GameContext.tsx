@@ -63,8 +63,8 @@ interface MetaData {
   coinNoticeShown: boolean;
   attendDate: string | null; // 마지막 도장 찍은 날짜 키 (광고 시청 완료)
   attendStreak: number; // 현재 연속 출석 수 (1~7, 7 완료 후 다음날 1로 순환)
-  attendClaimDate: string | null; // 마지막 토스포인트 수령한 날짜 키
-  attendPendingWon: number; // 도장 찍은 날의 수령 대기 금액(원)
+  attendClaimDate: string | null; // 마지막 일일 토스포인트(1원) 수령한 날짜 키
+  attendBonusPending: boolean; // 7일 연속 달성 보너스(5원) 수령 대기 여부
 }
 
 const DEFAULT_META: MetaData = {
@@ -76,7 +76,7 @@ const DEFAULT_META: MetaData = {
   attendDate: null,
   attendStreak: 0,
   attendClaimDate: null,
-  attendPendingWon: 0,
+  attendBonusPending: false,
 };
 
 const COINS_KEY = '@flagup/coins_v1';
@@ -127,15 +127,17 @@ interface GameContextType {
   challengesClaimed: number[];
   /** 챌린지 수령 표시 (보상 지급은 화면에서 프로모션으로 처리). 마킹 성공 시 true */
   markChallengeClaimed: (plays: number) => Promise<boolean>;
-  // 출석 (광고로 도장 → 도장 눌러 토스포인트 수령, 2단계)
+  // 출석 (광고로 도장 → 도장 눌러 일일 1원 수령 → 7일 연속 시 보너스 5원 별도 CTA)
   attendedToday: boolean; // 오늘 도장 찍음(광고 시청 완료)
-  attendClaimedToday: boolean; // 오늘 토스포인트 수령 완료
+  attendClaimedToday: boolean; // 오늘 일일 1원 수령 완료
   attendStreak: number;
-  attendPendingWon: number; // 수령 대기 금액(원)
-  /** 광고 시청 후 오늘 도장 찍기 — 일일/보너스 금액 반환. 이미 찍었으면 null */
-  stampAttendance: () => Promise<{ daily: number; bonus: number; streak: number; pending: number } | null>;
-  /** 오늘 도장의 토스포인트 수령 표시(지급은 화면에서). 마킹 성공 시 true */
+  attendBonusAvailable: boolean; // 7일 연속 보너스(5원) 수령 가능
+  /** 광고 시청 후 오늘 도장 찍기. 이미 찍었으면 null */
+  stampAttendance: () => Promise<{ streak: number } | null>;
+  /** 오늘 일일 1원 수령 표시(지급은 화면에서). 7일째면 보너스 대기 활성화. 마킹 성공 시 true */
   markAttendanceClaimed: () => Promise<boolean>;
+  /** 7일 연속 보너스(5원) 수령 표시(지급은 화면에서). 마킹 성공 시 true */
+  claimAttendanceBonus: () => Promise<boolean>;
   // 프로필/패스
   nickname: string;
   setNickname: (n: string) => Promise<void>;
@@ -302,26 +304,32 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     return true;
   }, [readMeta, saveMeta]);
 
-  // 광고 시청 후 오늘 도장 찍기 — 연속 스트릭 계산, 수령 대기 금액 저장
-  const stampAttendance = useCallback(async (): Promise<{ daily: number; bonus: number; streak: number; pending: number } | null> => {
+  // 광고 시청 후 오늘 도장 찍기 — 연속 스트릭 계산
+  const stampAttendance = useCallback(async (): Promise<{ streak: number } | null> => {
     const m = await readMeta();
     const today = todayKey();
     if (m.attendDate === today) return null; // 오늘 이미 도장 찍음
     const yesterday = dayKeyOffset(1);
     const streak = m.attendDate === yesterday ? (m.attendStreak >= 7 ? 1 : m.attendStreak + 1) : 1;
-    const daily = 1;
-    const bonus = streak === 7 ? 5 : 0;
-    const pending = daily + bonus;
-    await saveMeta({ ...m, attendDate: today, attendStreak: streak, attendPendingWon: pending });
-    return { daily, bonus, streak, pending };
+    await saveMeta({ ...m, attendDate: today, attendStreak: streak });
+    return { streak };
   }, [readMeta, saveMeta]);
 
-  // 오늘 도장의 토스포인트 수령 표시 (지급은 화면에서 프로모션으로)
+  // 오늘 일일 1원 수령 표시. 7일째 수령이면 연속 보너스(5원) 대기 활성화
   const markAttendanceClaimed = useCallback(async (): Promise<boolean> => {
     const m = await readMeta();
     const today = todayKey();
     if (m.attendDate !== today || m.attendClaimDate === today) return false;
-    await saveMeta({ ...m, attendClaimDate: today });
+    const reachedSeven = m.attendStreak === 7;
+    await saveMeta({ ...m, attendClaimDate: today, attendBonusPending: m.attendBonusPending || reachedSeven });
+    return true;
+  }, [readMeta, saveMeta]);
+
+  // 7일 연속 보너스(5원) 수령 표시
+  const claimAttendanceBonus = useCallback(async (): Promise<boolean> => {
+    const m = await readMeta();
+    if (!m.attendBonusPending) return false;
+    await saveMeta({ ...m, attendBonusPending: false });
     return true;
   }, [readMeta, saveMeta]);
 
@@ -413,9 +421,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             : meta.attendDate === dayKeyOffset(1)
             ? (meta.attendStreak >= 7 ? 0 : meta.attendStreak)
             : 0,
-        attendPendingWon: meta.attendPendingWon,
+        attendBonusAvailable: meta.attendBonusPending,
         stampAttendance,
         markAttendanceClaimed,
+        claimAttendanceBonus,
         nickname: meta.nickname,
         setNickname,
         hasPass,

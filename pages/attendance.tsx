@@ -4,7 +4,7 @@ import { createRoute } from '@granite-js/react-native';
 import React, { useRef, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { AD_ATTEND_IDS, BANNER_SUB, IMAGE_AD, PROMO_ATTENDANCE } from '../data/ads';
-import { ATTENDANCE_STREAK_LEN } from '../data/commands';
+import { ATTENDANCE_DAILY_WON, ATTENDANCE_STREAK_BONUS_WON, ATTENDANCE_STREAK_LEN } from '../data/commands';
 import { isGrantSuccess } from '../src/server';
 import { useFallbackAd } from '../src/useFallbackAd';
 import { useGame } from '../stores/GameContext';
@@ -20,9 +20,10 @@ function AttendancePage() {
     attendedToday,
     attendClaimedToday,
     attendStreak,
-    attendPendingWon,
+    attendBonusAvailable,
     stampAttendance,
     markAttendanceClaimed,
+    claimAttendanceBonus,
   } = useGame();
 
   const adSupported = loadFullScreenAd.isSupported() && showFullScreenAd.isSupported();
@@ -31,17 +32,14 @@ function AttendancePage() {
   const lock = useRef(false);
   const earnedRef = useRef(false);
 
-  // 도장 찍힌 칸 수: 도장 찍었으면 현재 연속, 아니면 살아있는 연속(다음 찍을 칸이 오늘)
-  const filled = attendedToday ? attendStreak : attendStreak;
-  const todayIndex = attendedToday ? attendStreak - 1 : attendStreak; // 오늘 칸 위치
+  const filled = attendStreak;
+  const todayIndex = attendedToday ? attendStreak - 1 : attendStreak;
 
   // 1단계: 광고 시청 후 도장 찍기
   const doStamp = () => {
     const finish = async () => {
       const res = await stampAttendance();
-      if (res) {
-        Alert.alert('도장 완료!', `이제 도장을 눌러 토스포인트 ${res.pending}원을 받으세요.${res.bonus > 0 ? '\n(7일 연속 보너스 포함)' : ''}`);
-      }
+      if (res) Alert.alert('도장 완료!', '이제 도장을 눌러 토스포인트 1원을 받으세요.');
     };
     if (!adSupported || !activeAdId) {
       finish();
@@ -78,21 +76,21 @@ function AttendancePage() {
     ]);
   };
 
-  // 2단계: 도장 눌러 토스포인트 수령
-  const doClaim = async () => {
+  // 2단계: 도장 눌러 일일 토스포인트 1원 수령
+  const doClaimDaily = async () => {
     setBusy(true);
     try {
-      const amount = attendPendingWon || 1;
       let ok = false;
       try {
-        const result = await grantPromotionReward({ params: { promotionCode: PROMO_ATTENDANCE, amount } });
+        const result = await grantPromotionReward({ params: { promotionCode: PROMO_ATTENDANCE, amount: ATTENDANCE_DAILY_WON } });
         ok = isGrantSuccess(result);
       } catch {
         ok = false;
       }
       if (ok) {
+        const seventh = attendStreak === ATTENDANCE_STREAK_LEN;
         await markAttendanceClaimed();
-        Alert.alert('수령 완료!', `토스포인트 ${amount}원을 받았어요.`);
+        Alert.alert('수령 완료!', `토스포인트 ${ATTENDANCE_DAILY_WON}원을 받았어요.${seventh ? '\n7일 연속 달성 보너스도 받아보세요! 🎉' : ''}`);
       } else {
         Alert.alert('지급에 실패했어요', '도장은 그대로 있어요. 잠시 후 다시 눌러주세요.');
       }
@@ -101,26 +99,51 @@ function AttendancePage() {
     }
   };
 
+  // 별도 CTA: 7일 연속 보너스 5원 수령
+  const doClaimBonus = async () => {
+    if (lock.current || busy) return;
+    lock.current = true;
+    setBusy(true);
+    try {
+      let ok = false;
+      try {
+        const result = await grantPromotionReward({ params: { promotionCode: PROMO_ATTENDANCE, amount: ATTENDANCE_STREAK_BONUS_WON } });
+        ok = isGrantSuccess(result);
+      } catch {
+        ok = false;
+      }
+      if (ok) {
+        await claimAttendanceBonus();
+        Alert.alert('7일 연속 달성! 🎉', `연속 출석 보너스 토스포인트 ${ATTENDANCE_STREAK_BONUS_WON}원을 받았어요.`);
+      } else {
+        Alert.alert('지급에 실패했어요', '보너스는 그대로 있어요. 잠시 후 다시 시도해주세요.');
+      }
+    } finally {
+      setBusy(false);
+      lock.current = false;
+    }
+  };
+
   const onTodayAction = () => {
     if (lock.current || busy) return;
     lock.current = true;
     try {
       if (!attendedToday) doStamp();
-      else if (!attendClaimedToday) doClaim();
+      else if (!attendClaimedToday) doClaimDaily();
     } finally {
       lock.current = false;
     }
   };
 
-  const btnLabel = busy
+  const todayBtnLabel = busy
     ? '처리 중...'
     : !attendedToday
     ? '광고 보고 오늘 도장 찍기'
     : !attendClaimedToday
-    ? `토스포인트 ${attendPendingWon || 1}원 받기`
+    ? `토스포인트 ${ATTENDANCE_DAILY_WON}원 받기`
     : '오늘 출석 완료 ✓';
 
-  const btnDisabled = busy || (attendedToday && attendClaimedToday);
+  const todayBtnDisabled = busy || (attendedToday && attendClaimedToday);
 
   return (
     <View style={s.root}>
@@ -167,6 +190,19 @@ function AttendancePage() {
           <Text style={s.streakTxt}>현재 {filled}일 연속 출석 중</Text>
         </View>
 
+        {/* 7일 연속 보너스 별도 CTA */}
+        {attendBonusAvailable && (
+          <TouchableOpacity
+            style={[s.bonusCard, busy && s.bonusCardDisabled]}
+            onPress={doClaimBonus}
+            disabled={busy}
+            activeOpacity={0.85}
+          >
+            <Text style={s.bonusTitle}>🎉 7일 연속 출석 달성!</Text>
+            <Text style={s.bonusCta}>보너스 토스포인트 {ATTENDANCE_STREAK_BONUS_WON}원 받기</Text>
+          </TouchableOpacity>
+        )}
+
         <View style={s.imageAdWrap}>
           <InlineAd adGroupId={IMAGE_AD} variant="expanded" impressFallbackOnMount />
         </View>
@@ -174,12 +210,12 @@ function AttendancePage() {
 
       <View style={s.footer}>
         <TouchableOpacity
-          style={[s.attendBtn, btnDisabled && s.attendBtnDisabled]}
+          style={[s.attendBtn, todayBtnDisabled && s.attendBtnDisabled]}
           onPress={onTodayAction}
-          disabled={btnDisabled}
+          disabled={todayBtnDisabled}
           activeOpacity={0.85}
         >
-          <Text style={s.attendBtnTxt}>{btnLabel}</Text>
+          <Text style={s.attendBtnTxt}>{todayBtnLabel}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -219,6 +255,20 @@ const s = StyleSheet.create({
   dayToday: { fontSize: 9, color: PRIMARY, fontWeight: '800' },
   dayDot: { fontSize: 12, color: '#D1D6DB' },
   streakTxt: { fontSize: 13, color: '#4E5968', textAlign: 'center', fontWeight: '600' },
+
+  bonusCard: {
+    backgroundColor: '#FFF8E1',
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderColor: '#FFE082',
+  },
+  bonusCardDisabled: { opacity: 0.5 },
+  bonusTitle: { fontSize: 14, fontWeight: '800', color: '#7A5800' },
+  bonusCta: { fontSize: 15, fontWeight: '900', color: '#D18700' },
 
   imageAdWrap: { overflow: 'hidden', borderRadius: 12 },
 

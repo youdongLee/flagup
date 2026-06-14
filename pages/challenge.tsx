@@ -26,16 +26,16 @@ function ChallengePage() {
   const adSupported = loadFullScreenAd.isSupported() && showFullScreenAd.isSupported();
   const { adLoaded, activeAdId, reload } = useFallbackAd(AD_CHALLENGE_IDS, adSupported);
   const [busy, setBusy] = useState(false);
-  const [unlocked, setUnlocked] = useState<Record<number, number>>({}); // plays → 확정된 보상 금액(원)
+  const [unlocked, setUnlocked] = useState<Record<number, boolean>>({}); // plays → 광고 시청 완료(수령 가능)
   const lock = useRef(false);
   const earnedRef = useRef(false);
 
-  // 1단계: 광고 시청 → 랜덤 보상 금액 확정(공개)
+  // 1단계: 광고 시청 → 수령 CTA 활성화 (금액은 수령 시 공개)
   const onWatchAd = (plays: number, maxWon: number) => {
     if (lock.current || busy) return;
-    const reveal = () => setUnlocked((prev) => ({ ...prev, [plays]: randomChallengeWon(maxWon) }));
+    const unlock = () => setUnlocked((prev) => ({ ...prev, [plays]: true }));
     if (!adSupported || !activeAdId) {
-      reveal();
+      unlock();
       return;
     }
     if (!adLoaded) {
@@ -56,7 +56,7 @@ function ChallengePage() {
               if (e.type === 'dismissed') {
                 setBusy(false);
                 reload();
-                if (earnedRef.current) reveal();
+                if (earnedRef.current) unlock();
               }
             },
             onError: () => {
@@ -69,11 +69,11 @@ function ChallengePage() {
     ]);
   };
 
-  // 2단계: 공개된 금액을 토스포인트로 수령
+  // 2단계: CTA 눌러 랜덤 토스포인트 수령 (금액은 이때 결정·공개)
   const onClaim = async (plays: number, maxWon: number) => {
     if (lock.current || busy) return;
-    const amount = unlocked[plays];
-    if (amount == null) return;
+    if (!unlocked[plays]) return;
+    const amount = randomChallengeWon(maxWon); // 1 ~ maxWon
     lock.current = true;
     setBusy(true);
     try {
@@ -134,14 +134,14 @@ function ChallengePage() {
                 {claimed ? (
                   <Text style={s.doneTxt}>수령 완료 ✓</Text>
                 ) : achievable ? (
-                  unlocked[c.plays] != null ? (
+                  unlocked[c.plays] ? (
                     <TouchableOpacity
                       style={[s.claimBtn, busy && s.claimBtnDisabled]}
                       onPress={() => onClaim(c.plays, c.maxWon)}
                       disabled={busy}
                       activeOpacity={0.85}
                     >
-                      <Text style={s.claimBtnTxt}>{busy ? '지급 중' : `${unlocked[c.plays]}원 받기`}</Text>
+                      <Text style={s.claimBtnTxt}>{busy ? '지급 중' : '보상 받기'}</Text>
                     </TouchableOpacity>
                   ) : (
                     <TouchableOpacity
