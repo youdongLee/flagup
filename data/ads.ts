@@ -12,7 +12,11 @@ export const IMAGE_AD = 'ait.v2.live.PLACEHOLDER_IMAGE';
 export const AD_COIN_IDS = ['ait.v2.live.PLACEHOLDER_REWARD_COIN']; // 게임 후 코인 받기
 export const AD_PLAY_IDS = ['ait.v2.live.PLACEHOLDER_REWARD_PLAY']; // 판 충전
 export const AD_REVIVE_IDS = ['ait.v2.live.PLACEHOLDER_REWARD_REVIVE']; // 이어하기
+export const AD_ATTEND_IDS = ['ait.v2.live.PLACEHOLDER_REWARD_ATTEND']; // 출석 도장
+export const AD_CHALLENGE_IDS = ['ait.v2.live.PLACEHOLDER_REWARD_CHALLENGE']; // 챌린지 보상
 
-// 코인 → 토스포인트 교환 프로모션 코드 (콘솔 발급 후 교체, TEST_ prefix로 테스트)
+// 토스포인트 지급 프로모션 코드 (콘솔 발급 후 교체, TEST_ prefix로 테스트)
 // ※ 랭킹 보상은 프로모션이 아니라 인앱 코인으로 지급하므로 별도 코드 없음
-export const PROMO_EXCHANGE = 'TEST_PLACEHOLDER_PROMO_EXCHANGE';
+export const PROMO_EXCHANGE = 'TEST_PLACEHOLDER_PROMO_EXCHANGE'; // 코인 교환 (100원)
+export const PROMO_ATTENDANCE = 'TEST_PLACEHOLDER_PROMO_ATTENDANCE'; // 출석 (1원, 연속보너스 5원) — 가변 amount
+export const PROMO_CHALLENGE = 'TEST_PLACEHOLDER_PROMO_CHALLENGE'; // 누적 챌린지 (최대 100원) — 가변 amount

@@ -77,7 +77,7 @@ function RankingPage() {
       }
       await addCoins(res.total);
       setReward((prev) => (prev ? { ...prev, claimed: true } : prev));
-      Alert.alert('랭킹 보상 지급!', `지난주 랭킹 보상 ${res.total.toLocaleString()}코인을 받았어요.`);
+      Alert.alert('랭킹 보상 지급!', `지난주 랭킹 보상 ${res.total.toLocaleString()}코인(${res.total.toLocaleString()}원)을 받았어요.`);
     } finally {
       setClaiming(false);
       claimLock.current = false;
@@ -137,7 +137,7 @@ function RankingPage() {
               🏆 지난주 {reward!.rank}위 보상이 도착했어요!
             </Text>
             <Text style={s.rewardCta}>
-              {claiming ? '지급 중...' : `+${reward!.amount.toLocaleString()}코인 받기`}
+              {claiming ? '지급 중...' : `+${reward!.amount.toLocaleString()}코인(${reward!.amount.toLocaleString()}원) 받기`}
             </Text>
           </TouchableOpacity>
         )}
@@ -149,11 +149,12 @@ function RankingPage() {
             {RANK_REWARDS.map((r) => (
               <View key={r.from} style={s.infoPill}>
                 <Text style={s.infoPillRank}>{r.from === r.to ? `${r.from}위` : `${r.from}~${r.to}위`}</Text>
-                <Text style={s.infoPillCoin}>+{r.coins.toLocaleString()}코인</Text>
+                <Text style={s.infoPillCoin}>{r.coins.toLocaleString()}코인</Text>
+                <Text style={s.infoPillWon}>({r.coins.toLocaleString()}원)</Text>
               </View>
             ))}
           </View>
-          <Text style={s.infoSub}>매주 월요일 0시에 지난주 순위로 코인이 지급돼요</Text>
+          <Text style={s.infoSub}>매주 월요일 0시에 지난주 순위로 코인이 지급돼요 (100코인 = 100원)</Text>
         </View>
 
         {/* 리더보드 */}
@@ -276,6 +277,7 @@ const s = StyleSheet.create({
   },
   infoPillRank: { fontSize: 12, fontWeight: '700', color: PRIMARY },
   infoPillCoin: { fontSize: 13, fontWeight: '800', color: '#191F28' },
+  infoPillWon: { fontSize: 10, color: '#8B95A1' },
   infoSub: { fontSize: 11, color: '#8B95A1', textAlign: 'center' },
 
   boardCard: { backgroundColor: '#fff', borderRadius: 16, padding: 16, gap: 4 },

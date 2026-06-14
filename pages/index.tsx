@@ -1,4 +1,4 @@
-import { InlineAd } from '@apps-in-toss/framework';
+import { InlineAd, share } from '@apps-in-toss/framework';
 import { createRoute } from '@granite-js/react-native';
 import React, { useEffect, useState } from 'react';
 import {
@@ -14,6 +14,9 @@ import { BANNER_HOME, IMAGE_AD } from '../data/ads';
 import { CHALLENGES, INITIAL_FLAGS } from '../data/commands';
 import { PASS_ENABLED, useGame } from '../stores/GameContext';
 import { usePlayGate } from '../src/usePlayGate';
+
+const SHARE_MESSAGE =
+  '청기백기 순발력 랭킹전 ⚡ 명령대로 깃발 올리고 내리며 순발력 겨뤄요! 주간 랭킹에 도전하고 코인도 모아보세요\nintoss://flagup';
 
 export const Route = createRoute('/', { component: HomePage });
 
@@ -32,7 +35,12 @@ function HomePage() {
     passUntil,
     coinNoticeShown,
     markCoinNoticeShown,
+    attendedToday,
   } = useGame();
+
+  const onShare = () => {
+    share({ message: SHARE_MESSAGE }).catch(() => {});
+  };
 
   const gate = usePlayGate(() => navigation.navigate('/game'));
   const [noticeVisible, setNoticeVisible] = useState(false);
@@ -92,6 +100,20 @@ function HomePage() {
             <PlayPill label="코인" left={gate.coinLeft} total={10} active={gate.nextSource === 'coin'} />
           </View>
         </View>
+
+        {/* 출석 체크 */}
+        <TouchableOpacity style={s.menuCard} onPress={() => navigation.navigate('/attendance')} activeOpacity={0.85}>
+          <View style={s.menuLeft}>
+            <Text style={s.menuEmoji}>📅</Text>
+            <View style={s.menuTexts}>
+              <Text style={s.menuTitle}>매일 출석 체크</Text>
+              <Text style={s.menuSub}>
+                {attendedToday ? '오늘 출석 완료! 내일 또 만나요' : '출석하고 1원 받기 (7일 연속 +5원)'}
+              </Text>
+            </View>
+          </View>
+          {attendedToday ? <Text style={s.menuArrow}>›</Text> : <View style={s.dot} />}
+        </TouchableOpacity>
 
         {/* 랭킹 */}
         <TouchableOpacity style={s.menuCard} onPress={() => navigation.navigate('/ranking')} activeOpacity={0.85}>

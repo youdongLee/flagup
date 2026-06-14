@@ -4,7 +4,7 @@ import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-nati
 
 export const Route = createRoute('/info', { component: InfoPage });
 
-export const APP_VERSION = '1.2.1';
+export const APP_VERSION = '1.3.0';
 
 const PRIMARY = '#1B64DA';
 const BG = '#F4F7FB';
@@ -47,10 +47,17 @@ function InfoPage() {
         </View>
 
         <View style={s.card}>
+          <Text style={s.sectionTitle}>출석·챌린지 안내</Text>
+          <Text style={s.row}>• 매일 출석: 광고 보고 도장을 찍은 뒤 도장을 눌러 토스포인트 1원을 받아요</Text>
+          <Text style={s.row}>• 7일 연속 출석 시 보너스 토스포인트 5원을 더 받아요</Text>
+          <Text style={s.row}>• 누적 도전 챌린지: 광고 시청 후 최대 금액 내에서 랜덤 토스포인트를 받아요</Text>
+        </View>
+
+        <View style={s.card}>
           <Text style={s.sectionTitle}>랭킹 안내</Text>
           <Text style={s.row}>• 주간 최고 라운드 기준으로 순위가 매겨져요 (동점 시 평균 반응속도가 빠른 순)</Text>
           <Text style={s.row}>• 매주 월요일 0시에 초기화되고, 지난주 순위에 따라 코인이 지급돼요</Text>
-          <Text style={s.row}>• 1위 300코인 · 2~3위 200코인 · 4~10위 100코인</Text>
+          <Text style={s.row}>• 1위 1,000코인 · 2~3위 500코인 · 4~5위 300코인 · 6~10위 100코인 (100코인=100원)</Text>
           <Text style={s.row}>• 보상은 랭킹 화면에서 받기 버튼으로 수령해요</Text>
           <Text style={s.row}>• 비정상적인 기록은 사전 안내 없이 제외될 수 있어요</Text>
         </View>

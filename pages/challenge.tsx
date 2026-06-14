@@ -1,6 +1,7 @@
-import { InlineAd } from '@apps-in-toss/framework';
+import { InlineAd, loadFullScreenAd, showFullScreenAd } from '@apps-in-toss/framework';
+import { grantPromotionReward } from '@apps-in-toss/native-modules';
 import { createRoute } from '@granite-js/react-native';
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Alert,
   ScrollView,
@@ -9,8 +10,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { BANNER_SUB } from '../data/ads';
-import { CHALLENGES } from '../data/commands';
+import { AD_CHALLENGE_IDS, BANNER_SUB, PROMO_CHALLENGE } from '../data/ads';
+import { CHALLENGES, randomChallengeWon } from '../data/commands';
+import { isGrantSuccess } from '../src/server';
+import { useFallbackAd } from '../src/useFallbackAd';
 import { useGame } from '../stores/GameContext';
 
 export const Route = createRoute('/challenge', { component: ChallengePage });
@@ -19,11 +22,83 @@ const PRIMARY = '#1B64DA';
 const BG = '#F4F7FB';
 
 function ChallengePage() {
-  const { totalPlays, challengesClaimed, claimChallenge } = useGame();
+  const { totalPlays, challengesClaimed, markChallengeClaimed } = useGame();
+  const adSupported = loadFullScreenAd.isSupported() && showFullScreenAd.isSupported();
+  const { adLoaded, activeAdId, reload } = useFallbackAd(AD_CHALLENGE_IDS, adSupported);
+  const [busy, setBusy] = useState(false);
+  const [unlocked, setUnlocked] = useState<Record<number, number>>({}); // plays → 확정된 보상 금액(원)
+  const lock = useRef(false);
+  const earnedRef = useRef(false);
 
-  const onClaim = async (plays: number) => {
-    const got = await claimChallenge(plays);
-    if (got > 0) Alert.alert('챌린지 달성!', `누적 ${plays}판 보상 ${got}코인을 받았어요.`);
+  // 1단계: 광고 시청 → 랜덤 보상 금액 확정(공개)
+  const onWatchAd = (plays: number, maxWon: number) => {
+    if (lock.current || busy) return;
+    const reveal = () => setUnlocked((prev) => ({ ...prev, [plays]: randomChallengeWon(maxWon) }));
+    if (!adSupported || !activeAdId) {
+      reveal();
+      return;
+    }
+    if (!adLoaded) {
+      Alert.alert('광고 준비 중이에요', '잠시 후 다시 시도해주세요.');
+      return;
+    }
+    Alert.alert('광고 보고 보상 받기', `광고를 보면 누적 ${plays.toLocaleString()}판 보상(최대 ${maxWon}원)을 받을 수 있어요. 광고를 볼까요?`, [
+      { text: '다음에', style: 'cancel' },
+      {
+        text: '광고 보기',
+        onPress: () => {
+          setBusy(true);
+          earnedRef.current = false;
+          showFullScreenAd({
+            options: { adGroupId: activeAdId },
+            onEvent: (e) => {
+              if (e.type === 'userEarnedReward') earnedRef.current = true;
+              if (e.type === 'dismissed') {
+                setBusy(false);
+                reload();
+                if (earnedRef.current) reveal();
+              }
+            },
+            onError: () => {
+              setBusy(false);
+              Alert.alert('광고를 불러올 수 없어요', '잠시 후 다시 시도해주세요.');
+            },
+          });
+        },
+      },
+    ]);
+  };
+
+  // 2단계: 공개된 금액을 토스포인트로 수령
+  const onClaim = async (plays: number, maxWon: number) => {
+    if (lock.current || busy) return;
+    const amount = unlocked[plays];
+    if (amount == null) return;
+    lock.current = true;
+    setBusy(true);
+    try {
+      let ok = false;
+      try {
+        const result = await grantPromotionReward({ params: { promotionCode: PROMO_CHALLENGE, amount } });
+        ok = isGrantSuccess(result);
+      } catch {
+        ok = false;
+      }
+      if (ok) {
+        await markChallengeClaimed(plays);
+        setUnlocked((prev) => {
+          const next = { ...prev };
+          delete next[plays];
+          return next;
+        });
+        Alert.alert('챌린지 달성!', `누적 ${plays.toLocaleString()}판 보상으로 토스포인트 ${amount}원을 받았어요! (최대 ${maxWon}원)`);
+      } else {
+        Alert.alert('지급에 실패했어요', '보상은 그대로 남아있어요. 잠시 후 다시 시도해 주세요.');
+      }
+    } finally {
+      setBusy(false);
+      lock.current = false;
+    }
   };
 
   return (
@@ -47,7 +122,7 @@ function ChallengePage() {
             <View key={c.plays} style={[s.itemCard, claimed && s.itemCardDone]}>
               <View style={s.itemTop}>
                 <Text style={s.itemTitle}>누적 {c.plays.toLocaleString()}판 도전</Text>
-                <Text style={s.itemCoin}>+{c.coins}코인</Text>
+                <Text style={s.itemCoin}>최대 {c.maxWon}원</Text>
               </View>
               <View style={s.progressTrack}>
                 <View style={[s.progressFill, { width: `${pct * 100}%` }, claimed && s.progressDone]} />
@@ -59,9 +134,25 @@ function ChallengePage() {
                 {claimed ? (
                   <Text style={s.doneTxt}>수령 완료 ✓</Text>
                 ) : achievable ? (
-                  <TouchableOpacity style={s.claimBtn} onPress={() => onClaim(c.plays)} activeOpacity={0.85}>
-                    <Text style={s.claimBtnTxt}>받기</Text>
-                  </TouchableOpacity>
+                  unlocked[c.plays] != null ? (
+                    <TouchableOpacity
+                      style={[s.claimBtn, busy && s.claimBtnDisabled]}
+                      onPress={() => onClaim(c.plays, c.maxWon)}
+                      disabled={busy}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={s.claimBtnTxt}>{busy ? '지급 중' : `${unlocked[c.plays]}원 받기`}</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      style={[s.adBtn, busy && s.claimBtnDisabled]}
+                      onPress={() => onWatchAd(c.plays, c.maxWon)}
+                      disabled={busy}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={s.adBtnTxt}>광고 보고 받기</Text>
+                    </TouchableOpacity>
+                  )
                 ) : (
                   <Text style={s.lockedTxt}>진행 중</Text>
                 )}
@@ -109,5 +200,13 @@ const s = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 18,
   },
+  claimBtnDisabled: { opacity: 0.5 },
   claimBtnTxt: { color: '#fff', fontSize: 13, fontWeight: '800' },
+  adBtn: {
+    backgroundColor: '#E8F1FF',
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+  },
+  adBtnTxt: { color: PRIMARY, fontSize: 13, fontWeight: '800' },
 });

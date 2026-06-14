@@ -61,6 +61,10 @@ interface MetaData {
   nickname: string;
   passUntil: number; // 0 = 패스 없음
   coinNoticeShown: boolean;
+  attendDate: string | null; // 마지막 도장 찍은 날짜 키 (광고 시청 완료)
+  attendStreak: number; // 현재 연속 출석 수 (1~7, 7 완료 후 다음날 1로 순환)
+  attendClaimDate: string | null; // 마지막 토스포인트 수령한 날짜 키
+  attendPendingWon: number; // 도장 찍은 날의 수령 대기 금액(원)
 }
 
 const DEFAULT_META: MetaData = {
@@ -69,6 +73,10 @@ const DEFAULT_META: MetaData = {
   nickname: '',
   passUntil: 0,
   coinNoticeShown: false,
+  attendDate: null,
+  attendStreak: 0,
+  attendClaimDate: null,
+  attendPendingWon: 0,
 };
 
 const COINS_KEY = '@flagup/coins_v1';
@@ -88,6 +96,11 @@ export async function getStoredNickname(): Promise<string> {
 
 export function todayKey(): string {
   const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  return `${kst.getUTCFullYear()}-${String(kst.getUTCMonth() + 1).padStart(2, '0')}-${String(kst.getUTCDate()).padStart(2, '0')}`;
+}
+
+function dayKeyOffset(daysAgo: number): string {
+  const kst = new Date(Date.now() + 9 * 60 * 60 * 1000 - daysAgo * 24 * 60 * 60 * 1000);
   return `${kst.getUTCFullYear()}-${String(kst.getUTCMonth() + 1).padStart(2, '0')}-${String(kst.getUTCDate()).padStart(2, '0')}`;
 }
 
@@ -112,7 +125,17 @@ interface GameContextType {
   finishGame: (score: number) => Promise<number>;
   scoreBonusAvailable: number;
   challengesClaimed: number[];
-  claimChallenge: (plays: number) => Promise<number>;
+  /** 챌린지 수령 표시 (보상 지급은 화면에서 프로모션으로 처리). 마킹 성공 시 true */
+  markChallengeClaimed: (plays: number) => Promise<boolean>;
+  // 출석 (광고로 도장 → 도장 눌러 토스포인트 수령, 2단계)
+  attendedToday: boolean; // 오늘 도장 찍음(광고 시청 완료)
+  attendClaimedToday: boolean; // 오늘 토스포인트 수령 완료
+  attendStreak: number;
+  attendPendingWon: number; // 수령 대기 금액(원)
+  /** 광고 시청 후 오늘 도장 찍기 — 일일/보너스 금액 반환. 이미 찍었으면 null */
+  stampAttendance: () => Promise<{ daily: number; bonus: number; streak: number; pending: number } | null>;
+  /** 오늘 도장의 토스포인트 수령 표시(지급은 화면에서). 마킹 성공 시 true */
+  markAttendanceClaimed: () => Promise<boolean>;
   // 프로필/패스
   nickname: string;
   setNickname: (n: string) => Promise<void>;
@@ -269,15 +292,38 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   const scoreBonusAvailable = Math.max(0, scoreBonusFor(daily.bestScore) - daily.scoreBonusClaimed);
 
-  const claimChallenge = useCallback(async (plays: number): Promise<number> => {
+  // 챌린지 달성 표시만 (토스포인트 지급은 화면에서 프로모션으로). 마킹 성공 시 true
+  const markChallengeClaimed = useCallback(async (plays: number): Promise<boolean> => {
     const m = await readMeta();
     const challenge = CHALLENGES.find((c) => c.plays === plays);
-    if (!challenge) return 0;
-    if (m.totalPlays < plays || m.challengesClaimed.includes(plays)) return 0;
+    if (!challenge) return false;
+    if (m.totalPlays < plays || m.challengesClaimed.includes(plays)) return false;
     await saveMeta({ ...m, challengesClaimed: [...m.challengesClaimed, plays] });
-    await addCoins(challenge.coins);
-    return challenge.coins;
-  }, [readMeta, saveMeta, addCoins]);
+    return true;
+  }, [readMeta, saveMeta]);
+
+  // 광고 시청 후 오늘 도장 찍기 — 연속 스트릭 계산, 수령 대기 금액 저장
+  const stampAttendance = useCallback(async (): Promise<{ daily: number; bonus: number; streak: number; pending: number } | null> => {
+    const m = await readMeta();
+    const today = todayKey();
+    if (m.attendDate === today) return null; // 오늘 이미 도장 찍음
+    const yesterday = dayKeyOffset(1);
+    const streak = m.attendDate === yesterday ? (m.attendStreak >= 7 ? 1 : m.attendStreak + 1) : 1;
+    const daily = 1;
+    const bonus = streak === 7 ? 5 : 0;
+    const pending = daily + bonus;
+    await saveMeta({ ...m, attendDate: today, attendStreak: streak, attendPendingWon: pending });
+    return { daily, bonus, streak, pending };
+  }, [readMeta, saveMeta]);
+
+  // 오늘 도장의 토스포인트 수령 표시 (지급은 화면에서 프로모션으로)
+  const markAttendanceClaimed = useCallback(async (): Promise<boolean> => {
+    const m = await readMeta();
+    const today = todayKey();
+    if (m.attendDate !== today || m.attendClaimDate === today) return false;
+    await saveMeta({ ...m, attendClaimDate: today });
+    return true;
+  }, [readMeta, saveMeta]);
 
   // ----- 프로필/패스 -----
 
@@ -358,7 +404,18 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         finishGame,
         scoreBonusAvailable,
         challengesClaimed: meta.challengesClaimed,
-        claimChallenge,
+        markChallengeClaimed,
+        attendedToday: meta.attendDate === todayKey(),
+        attendClaimedToday: meta.attendClaimDate === todayKey(),
+        attendStreak:
+          meta.attendDate === todayKey()
+            ? meta.attendStreak
+            : meta.attendDate === dayKeyOffset(1)
+            ? (meta.attendStreak >= 7 ? 0 : meta.attendStreak)
+            : 0,
+        attendPendingWon: meta.attendPendingWon,
+        stampAttendance,
+        markAttendanceClaimed,
         nickname: meta.nickname,
         setNickname,
         hasPass,

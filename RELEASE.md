@@ -45,18 +45,20 @@
 | AD_COIN_IDS | 보상형 | 게임 후 코인 받기 (핵심 슬롯) |
 | AD_PLAY_IDS | 보상형 | 판 충전 (+1판) |
 | AD_REVIVE_IDS | 보상형 | 이어하기 (5라운드 이상 탈락 시) |
+| AD_ATTEND_IDS | 보상형 | 출석 도장 |
+| AD_CHALLENGE_IDS | 보상형 | 챌린지 보상 |
 
 ## 3. 프로모션 2개 등록 → `data/ads.ts` 교체
 
 비즈월렛 충전 후 콘솔에 **2개** 등록(검토 2~3일). 각각 `TEST_{코드}`로 샌드박스 검증 후 라이브 코드 교체 → 재빌드.
 
-**3-1. 코인 교환용 → PROMO_EXCHANGE**
+콘솔에 **프로모션 3개** 등록(전부 토스포인트 직접 지급).
 
-| 항목 | 값 |
-|---|---|
-| 프로모션 이름 | 청기백기 코인 교환 |
-| 미션명 | 코인 100개를 토스포인트로 교환하기 |
-| 지급 금액 | 100원 (가변 아님) |
+**3-1. 코인 교환용 → PROMO_EXCHANGE** (지급 100원)
+
+**3-1b. 출석용 → PROMO_ATTENDANCE** (가변: 1원 / 연속보너스 5원, 1회 최대 ≥5원 설정)
+
+**3-1c. 챌린지용 → PROMO_CHALLENGE** (가변: 1~100원 랜덤, 1회 최대 ≥100원 설정)
 
 **3-2. 주간 랭킹 보상 → 인앱 코인 (프로모션 아님)**
 
@@ -79,7 +81,7 @@
 
 - [ ] granite.config.ts `brand.icon` URL 입력
 - [ ] data/ads.ts 광고 6슬롯 실코드 교체
-- [ ] data/ads.ts PROMO_EXCHANGE (교환용 1개) 라이브 코드 교체 — 랭킹은 코인 지급이라 프로모션 불필요
+- [ ] data/ads.ts PROMO_EXCHANGE/ATTENDANCE/CHALLENGE (3개) 라이브 코드 교체 — 랭킹은 코인 지급이라 프로모션 불필요
 - [ ] **pages/dev.tsx "패스 토글" 버튼 제거** (현재 보류 중 — 무료 패스 우회 경로)
 - [ ] **src/secret.ts 존재 확인** (git 미커밋. 없으면 빌드 실패 — src/secret.example.ts 복사 후 값 입력, 서버 wrangler secret APP_SECRET과 동일)
 - [ ] package.json 버전 범프 후 `npx ait build` (npm run build 금지 — exit 48 환경 이슈)

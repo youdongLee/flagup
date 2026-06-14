@@ -131,18 +131,25 @@ export const SCORE_BONUS_TIERS = [
   { rounds: 40, coins: 5 },
 ];
 
-// 누적 판수 챌린지 (1회성)
-export const CHALLENGES: { plays: number; coins: number }[] = [
-  { plays: 10, coins: 5 },
-  { plays: 50, coins: 10 },
-  { plays: 100, coins: 15 },
-  { plays: 300, coins: 30 },
-  { plays: 500, coins: 50 },
-  { plays: 1000, coins: 100 },
-  { plays: 2000, coins: 100 },
-  { plays: 3000, coins: 100 },
-  { plays: 5000, coins: 100 },
+// 누적 판수 챌린지 (1회성) — 토스포인트 "최대 N원" 랜덤 지급(최소 1원)
+export const CHALLENGES: { plays: number; maxWon: number }[] = [
+  { plays: 10, maxWon: 5 },
+  { plays: 50, maxWon: 10 },
+  { plays: 100, maxWon: 15 },
+  { plays: 300, maxWon: 30 },
+  { plays: 500, maxWon: 50 },
+  { plays: 1000, maxWon: 100 },
 ];
+
+// "최대 max원" 랜덤 보상 금액 (1 ~ max)
+export function randomChallengeWon(maxWon: number): number {
+  return 1 + Math.floor(Math.random() * maxWon);
+}
+
+// 출석 보상 (토스포인트 직접 지급): 일일 1원, 7일 연속 시 보너스 +5원
+export const ATTENDANCE_DAILY_WON = 1;
+export const ATTENDANCE_STREAK_BONUS_WON = 5;
+export const ATTENDANCE_STREAK_LEN = 7;
 
 // 일일 판수 설계
 export const FREE_PLAYS_PER_DAY = 5;
@@ -150,9 +157,10 @@ export const AD_PLAYS_PER_DAY = 10;
 export const COIN_PLAYS_PER_DAY = 10;
 export const COIN_PLAY_COST = 3;
 
-// 주간 랭킹 보상 — 인앱 코인 지급. 서버 rewardForRank와 동일 값 유지 (표시용)
+// 주간 랭킹 보상 — 인앱 코인 지급(1코인=1원). 서버 rewardForRank와 동일 값 유지 (표시용)
 export const RANK_REWARDS = [
-  { from: 1, to: 1, coins: 300 },
-  { from: 2, to: 3, coins: 200 },
-  { from: 4, to: 10, coins: 100 },
+  { from: 1, to: 1, coins: 1000 },
+  { from: 2, to: 3, coins: 500 },
+  { from: 4, to: 5, coins: 300 },
+  { from: 6, to: 10, coins: 100 },
 ];
