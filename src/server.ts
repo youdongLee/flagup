@@ -163,15 +163,15 @@ export async function unclaimReward(weeks: string[]): Promise<void> {
   });
 }
 
-// 실시간 이용자 하트비트 — 핑 후 현재 접속(최근 2분 활동)자 수 반환
+// 이용자 하트비트 — 핑 후 오늘 플레이한 유니크 이용자 수 반환
 export async function pingPresence(): Promise<number | null> {
   const uuid = await getActiveId();
-  const res = await request<{ ok: boolean; online: number }>('/v1/ping', {
+  const res = await request<{ ok: boolean; today: number }>('/v1/ping', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ uuid }),
   });
-  return res && res.ok ? res.online : null;
+  return res && res.ok ? res.today : null;
 }
 
 // grantPromotionReward는 실패해도 throw하지 않고 결과 객체를 반환한다.

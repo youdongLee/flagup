@@ -263,7 +263,7 @@ async function handleClaim(request, env) {
   return json({ ok: true, total, rewards: list });
 }
 
-// 실시간 이용자 하트비트 — last_seen 갱신 후 최근 2분 활동자 수 반환 (서명 불필요·저위험)
+// 이용자 하트비트 — 오늘(KST) 플레이한 유니크 이용자 수 반환 (서명 불필요·저위험)
 async function handlePing(request, env) {
   let body;
   try {
@@ -273,20 +273,14 @@ async function handlePing(request, env) {
   }
   const { uuid } = body ?? {};
   if (typeof uuid !== 'string' || uuid.length < 8 || uuid.length > 64) return json({ ok: false }, 400);
-  const now = Date.now();
-  await env.DB.prepare(
-    'INSERT INTO presence (id, last_seen) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET last_seen = ?',
-  )
-    .bind(uuid, now, now)
-    .run();
-  const row = await env.DB.prepare('SELECT COUNT(*) AS n FROM presence WHERE last_seen > ?')
-    .bind(now - 120000)
-    .first();
-  // 가끔 오래된 행 정리 (1시간 초과)
-  if (Math.random() < 0.1) {
-    await env.DB.prepare('DELETE FROM presence WHERE last_seen < ?').bind(now - 3600000).run();
+  const day = dayKey();
+  await env.DB.prepare('INSERT OR IGNORE INTO daily_players (day, id) VALUES (?, ?)').bind(day, uuid).run();
+  const row = await env.DB.prepare('SELECT COUNT(*) AS n FROM daily_players WHERE day = ?').bind(day).first();
+  // 가끔 지난 날짜 정리
+  if (Math.random() < 0.05) {
+    await env.DB.prepare('DELETE FROM daily_players WHERE day < ?').bind(day).run();
   }
-  return json({ ok: true, online: row.n });
+  return json({ ok: true, today: row.n });
 }
 
 // 지급 실패 롤백 — 방금 claim한 주(week)만 미수령으로 되돌린다 (과거 지급분은 보존)

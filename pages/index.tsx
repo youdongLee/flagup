@@ -105,18 +105,6 @@ function HomePage() {
           <InlineAd adGroupId={BANNER_HOME} variant="expanded" impressFallbackOnMount />
         </View>
 
-        {/* 실시간 이용자 수 */}
-        {liveUsers !== null && (
-          <View style={s.liveRow}>
-            <View style={s.liveDot} />
-            <Text style={s.liveTxt}>
-              {liveUsers >= 2
-                ? `지금 ${liveUsers.toLocaleString()}명이 함께 플레이 중`
-                : '지금 막 플레이가 시작됐어요'}
-            </Text>
-          </View>
-        )}
-
         {/* 코인 지갑 */}
         <TouchableOpacity style={s.walletCard} onPress={() => navigation.navigate('/exchange')} activeOpacity={0.85}>
           <View style={s.walletLeft}>
@@ -130,8 +118,14 @@ function HomePage() {
 
         {/* 히어로 */}
         <View style={s.heroCard}>
-          <Text style={s.heroTitle}>청기백기 순발력 랭킹전</Text>
-          <Text style={s.heroSub}>명령에 맞게 깃발을 올리고 내려요{'\n'}틀리거나 늦으면 탈락!</Text>
+          {liveUsers !== null && (
+            <View style={s.liveRow}>
+              <View style={s.liveDot} />
+              <Text style={s.liveTxt}>
+                {liveUsers >= 2 ? `오늘 ${liveUsers.toLocaleString()}명이 플레이했어요` : '오늘의 첫 주자예요!'}
+              </Text>
+            </View>
+          )}
           <View style={s.heroFlags}>
             <Flags state={{ ...INITIAL_FLAGS, blue: true }} height={104} />
           </View>
@@ -276,9 +270,9 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: BG },
   bannerWrap: { overflow: 'hidden', backgroundColor: BG },
   scroll: { flex: 1 },
-  liveRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: -2 },
+  liveRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 2 },
   liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#22C55E' },
-  liveTxt: { fontSize: 13, fontWeight: '700', color: '#22A557' },
+  liveTxt: { fontSize: 14, fontWeight: '800', color: '#22A557' },
   content: { paddingTop: 12, paddingBottom: 32, paddingHorizontal: 16, gap: 12 },
 
   walletCard: {
