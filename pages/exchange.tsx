@@ -129,7 +129,7 @@ function ExchangePage() {
           <Text style={s.guideRow}>🎮 게임 1판 완료 +1코인</Text>
           <Text style={s.guideRow}>🎉 일일 최고기록 보너스 +2~5코인</Text>
           <Text style={s.guideRow}>🚩 누적 판수 챌린지 +5~100코인</Text>
-          <Text style={s.guideRow}>🏆 주간 랭킹 TOP 10 +100~300코인</Text>
+          <Text style={s.guideRow}>🏆 주간 랭킹 TOP 10 +100~1,000코인</Text>
         </View>
 
         <View style={s.imageAdWrap}>

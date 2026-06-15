@@ -272,7 +272,7 @@ function GamePage() {
             </View>
             <View style={s.rewardRow}>
               <Text style={s.rewardLabel}>주간 랭킹 TOP 10</Text>
-              <Text style={s.rewardValue}>+100~300코인</Text>
+              <Text style={s.rewardValue}>+100~1,000코인</Text>
             </View>
             <Text style={s.rewardNote}>최고기록 보너스는 갱신한 만큼만 더 받아요 (하루 최대 5코인)</Text>
           </View>
