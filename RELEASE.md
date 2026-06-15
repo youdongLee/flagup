@@ -97,7 +97,8 @@
 - 동의 항목은 최소(userKey만)로 — userKey는 비암호화 반환이라 복호화 키/PII 불필요
 - **구현 완료(코드), 활성화 대기**: 클라이언트 appLogin→Worker(/v1/login: 토큰교환→userKey→기기데이터 이관→지갑 복원), 코인 서버 동기화(/v1/wallet/sync), 랭킹 식별자 userKey 전환. 교환 화면에 로그인 게이트.
 - **활성화 방법**: ① 콘솔 토스 로그인 설정(약관 동의·위 약관 URL 등록·동의항목·연결끊기 콜백) ② `src/login.ts`의 `LOGIN_ENABLED = true` ③ 재빌드 ④ 토스앱(QR)으로 실제 로그인 테스트
-- CF Worker→토스 파트너 API 도달성은 스모크 테스트로 확인됨(bogus 코드 502 응답). 실제 인가코드 검증만 콘솔 설정 후 가능
+- CF Worker→토스 파트너 API 도달성·**mTLS 핸드셰이크 확인됨**(bogus 코드 502 응답). 실제 인가코드 검증만 콘솔 토스로그인 설정 + LOGIN_ENABLED=true 후 토스앱 QR로 가능
+- **mTLS 적용 완료**: 콘솔 발급 인증서를 Cloudflare에 업로드(`wrangler mtls-certificate`, ID 4ee7ad82…) → wrangler.toml `[[mtls_certificates]]` 바인딩(TOSS_CERT) → Worker가 `env.TOSS_CERT.fetch`로 토스 호출. 인증서 만료 2027-07-10(전 재발급·재업로드 필요)
 - ⚠️ 다기기 코인: 로그인 시 max(서버,로컬) 복원 / 이후 last-write-wins 동기화. 동시 멀티기기 플레이 시 일부 손실 가능(단일 사용자 가정, 교환 한도로 영향 제한)
 
 ## 6. 서버 (배포 완료 — 추가 작업 없음)

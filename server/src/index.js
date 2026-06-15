@@ -310,9 +310,15 @@ async function settleWeek(env, week) {
 }
 
 // ── 토스 로그인(방식 B) ──────────────────────────────────────────
+// 토스 파트너 API는 mTLS 필수. env.TOSS_CERT(mtls_certificates 바인딩) fetch로 호출해야
+// 클라이언트 인증서가 핸드셰이크에 실린다. 바인딩이 없으면 일반 fetch로 폴백(로컬/미설정 대비).
+function tossFetch(env) {
+  return env.TOSS_CERT ? env.TOSS_CERT.fetch.bind(env.TOSS_CERT) : fetch;
+}
+
 // 인가코드 → accessToken
-async function tossExchangeToken(authorizationCode, referrer) {
-  const r = await fetch(`${TOSS_API}/api-partner/v1/apps-in-toss/user/oauth2/generate-token`, {
+async function tossExchangeToken(env, authorizationCode, referrer) {
+  const r = await tossFetch(env)(`${TOSS_API}/api-partner/v1/apps-in-toss/user/oauth2/generate-token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ authorizationCode, referrer }),
@@ -322,8 +328,8 @@ async function tossExchangeToken(authorizationCode, referrer) {
 }
 
 // accessToken → userKey (비암호화 반환)
-async function tossUserKey(accessToken) {
-  const r = await fetch(`${TOSS_API}/api-partner/v1/apps-in-toss/user/oauth2/login-me`, {
+async function tossUserKey(env, accessToken) {
+  const r = await tossFetch(env)(`${TOSS_API}/api-partner/v1/apps-in-toss/user/oauth2/login-me`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   const j = await r.json().catch(() => null);
@@ -341,9 +347,9 @@ async function handleLogin(request, env) {
   const { authorizationCode, referrer, deviceId, localCoins, localExchanged } = body ?? {};
   if (typeof authorizationCode !== 'string' || typeof referrer !== 'string') return json({ ok: false }, 400);
 
-  const accessToken = await tossExchangeToken(authorizationCode, referrer);
+  const accessToken = await tossExchangeToken(env, authorizationCode, referrer);
   if (!accessToken) return json({ ok: false, error: 'token_exchange_failed' }, 502);
-  const userKey = await tossUserKey(accessToken);
+  const userKey = await tossUserKey(env, accessToken);
   if (userKey == null) return json({ ok: false, error: 'userkey_failed' }, 502);
   const id = `u:${userKey}`;
 

@@ -11,3 +11,9 @@ crons = ["0 15 * * SUN"]
 binding = "DB"
 database_name = "flagup"
 database_id = "773014ae-7760-43f9-8e38-3edeabbba696"
+
+# 토스 로그인(방식 B) 파트너 API 호출용 mTLS 클라이언트 인증서
+# env.TOSS_CERT.fetch(...)로 호출 시 클라이언트 인증서가 핸드셰이크에 실림
+[[mtls_certificates]]
+binding = "TOSS_CERT"
+certificate_id = "4ee7ad82-0376-4453-b757-23de79a92024"
