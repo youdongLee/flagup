@@ -12,7 +12,7 @@ export default defineConfig({
       brand: {
         displayName: '청기백기 순발력 랭킹전',
         primaryColor: '#1B64DA',
-        icon: '', // TODO: 콘솔에서 로고 업로드 후 URL 입력
+        icon: 'https://static.toss.im/appsintoss/28423/2eb0e5f5-ac8d-4a17-a351-fe15480ff685.png',
       },
       permissions: [],
     }),

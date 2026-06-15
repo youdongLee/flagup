@@ -79,7 +79,7 @@
 
 ## 5. 출시 직전 코드 체크리스트
 
-- [ ] granite.config.ts `brand.icon` URL 입력
+- [x] granite.config.ts `brand.icon` URL 입력 완료 (static.toss.im/.../2eb0e5f5...png)
 - [x] data/ads.ts 광고 ID 적용 완료 (배너 fb1d821a / 이미지 299b4337 / 리워드 4fc4c32a, 유형별 공유)
 - [ ] data/ads.ts PROMO_EXCHANGE/ATTENDANCE/CHALLENGE (3개) 라이브 코드 교체 — 랭킹은 코인 지급이라 프로모션 불필요
 - [ ] **pages/dev.tsx "패스 토글" 버튼 제거** (현재 보류 중 — 무료 패스 우회 경로)
