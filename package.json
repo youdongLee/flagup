@@ -1,6 +1,6 @@
 {
   "name": "flagup",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "private": true,
   "scripts": {
     "dev": "granite dev",

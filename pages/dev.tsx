@@ -2,7 +2,8 @@ import { createRoute } from '@granite-js/react-native';
 import React, { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useGame } from '../stores/GameContext';
-import { fetchLeaderboard, getUuid, SERVER_URL, serverEnabled } from '../src/server';
+import { fetchLeaderboard, getStoredUserKey, getUuid, SERVER_URL, serverEnabled } from '../src/server';
+import { LOGIN_ENABLED } from '../src/login';
 
 export const Route = createRoute('/dev', { component: DevPage });
 
@@ -21,6 +22,7 @@ function DevPage() {
     hasPass,
     passUntil,
     nickname,
+    isLoggedIn,
     devAddCoins,
     devResetDaily,
     devAddTotalPlays,
@@ -29,9 +31,11 @@ function DevPage() {
   } = useGame();
 
   const [uuid, setUuid] = useState('');
+  const [userKey, setUserKey] = useState<string | null>(null);
 
   useEffect(() => {
     getUuid().then(setUuid);
+    getStoredUserKey().then(setUserKey);
   }, []);
 
   const testServer = async () => {
@@ -55,7 +59,11 @@ function DevPage() {
           <Text style={s.row}>오늘 최고: {todayBest} (보너스 대기 {scoreBonusAvailable})</Text>
           <Text style={s.row}>닉네임: {nickname || '(없음)'}</Text>
           <Text style={s.row}>패스: {hasPass ? `ON ~${new Date(passUntil).toLocaleDateString()}` : 'OFF'}</Text>
-          <Text style={s.rowSmall}>uuid: {uuid}</Text>
+          <Text style={s.row}>
+            토스로그인: {isLoggedIn ? '✅ 로그인됨' : '❌ 미로그인'} (기능 {LOGIN_ENABLED ? 'ON' : 'OFF'})
+          </Text>
+          <Text style={s.rowSmall}>userKey: {userKey ?? '(없음)'}</Text>
+          <Text style={s.rowSmall}>식별자: {userKey ? `u:${userKey}` : uuid}</Text>
           <Text style={s.rowSmall}>server: {SERVER_URL || '(미설정)'}</Text>
         </View>
 

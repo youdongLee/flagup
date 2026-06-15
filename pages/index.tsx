@@ -216,7 +216,7 @@ function HomePage() {
         <View pointerEvents="box-none" style={s.hintWrap}>
           <TouchableOpacity style={s.hintPill} onPress={scrollToAttendance} activeOpacity={0.85}>
             <Animated.Text style={[s.hintArrow, { transform: [{ translateY: bounceY }] }]}>⬇</Animated.Text>
-            <Text style={s.hintText}>맨 아래에서 출석하고 1원 받기</Text>
+            <Text style={s.hintText}>맨 아래에서 출석체크하고 포인트 받기</Text>
           </TouchableOpacity>
         </View>
       )}
