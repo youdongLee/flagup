@@ -103,11 +103,12 @@ function ChallengePage() {
 
   return (
     <View style={s.root}>
-      <View style={s.bannerWrap}>
-        <InlineAd adGroupId={BANNER_SUB} variant="expanded" impressFallbackOnMount />
-      </View>
-
       <ScrollView style={s.scroll} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+        {/* 배너 광고 (스크롤형) */}
+        <View style={s.bannerWrap}>
+          <InlineAd adGroupId={BANNER_SUB} variant="expanded" impressFallbackOnMount />
+        </View>
+
         <View style={s.headCard}>
           <Text style={s.headEmoji}>🚩</Text>
           <Text style={s.headTitle}>누적 도전 챌린지</Text>

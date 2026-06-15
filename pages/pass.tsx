@@ -1,3 +1,4 @@
+import { InlineAd } from '@apps-in-toss/framework';
 import { createRoute } from '@granite-js/react-native';
 import React, { useEffect, useState } from 'react';
 import {
@@ -8,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { IMAGE_AD } from '../data/ads';
 import { PASS_DURATION_MS, PASS_ENABLED, PASS_SKU, useGame } from '../stores/GameContext';
 
 export const Route = createRoute('/pass', { component: PassPage });
@@ -169,6 +171,10 @@ function PassPage() {
         <TouchableOpacity style={s.restoreBtn} onPress={onRestore} activeOpacity={0.7}>
           <Text style={s.restoreTxt}>구매 복원 (기기 변경 시)</Text>
         </TouchableOpacity>
+
+        <View style={s.imageAdWrap}>
+          <InlineAd adGroupId={IMAGE_AD} variant="expanded" impressFallbackOnMount />
+        </View>
       </ScrollView>
     </View>
   );
@@ -178,6 +184,7 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: BG },
   scroll: { flex: 1 },
   content: { padding: 16, gap: 12, paddingBottom: 32 },
+  imageAdWrap: { overflow: 'hidden', borderRadius: 12 },
   emptyCard: {
     flex: 1,
     alignItems: 'center',

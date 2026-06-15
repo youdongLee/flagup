@@ -10,7 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { AD_COIN_IDS, BANNER_SUB } from '../data/ads';
+import { AD_COIN_IDS, BANNER_SUB, IMAGE_AD } from '../data/ads';
 import { getStoredNickname, useGame } from '../stores/GameContext';
 import { getUuid, serverEnabled, submitScore, SubmitResponse } from '../src/server';
 import { useFallbackAd } from '../src/useFallbackAd';
@@ -129,11 +129,12 @@ function ResultPage() {
 
   return (
     <View style={s.root}>
-      <View style={s.bannerWrap}>
-        <InlineAd adGroupId={BANNER_SUB} variant="expanded" impressFallbackOnMount />
-      </View>
-
       <ScrollView style={s.scroll} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+        {/* 배너 광고 (스크롤형) */}
+        <View style={s.bannerWrap}>
+          <InlineAd adGroupId={BANNER_SUB} variant="expanded" impressFallbackOnMount />
+        </View>
+
         {/* 점수 */}
         <View style={s.scoreCard}>
           <Text style={s.scoreCaption}>이번 판 기록</Text>
@@ -195,6 +196,11 @@ function ResultPage() {
             <Text style={s.menuArrow}>›</Text>
           </TouchableOpacity>
         )}
+
+        {/* 이미지 광고 — 랭킹 섹션 아래 */}
+        <View style={s.imageAdWrap}>
+          <InlineAd adGroupId={IMAGE_AD} variant="expanded" impressFallbackOnMount />
+        </View>
       </ScrollView>
 
       <View style={s.footer}>
@@ -217,6 +223,7 @@ function ResultPage() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: BG },
   bannerWrap: { overflow: 'hidden', backgroundColor: BG },
+  imageAdWrap: { overflow: 'hidden', borderRadius: 12 },
   scroll: { flex: 1 },
   content: { paddingTop: 12, paddingBottom: 16, paddingHorizontal: 16, gap: 12 },
 

@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { Flags } from '../components/Flags';
-import { AD_REVIVE_IDS, IMAGE_AD } from '../data/ads';
+import { AD_REVIVE_IDS, BANNER_SUB, IMAGE_AD } from '../data/ads';
 import {
   applyAction,
   Command,
@@ -252,6 +252,10 @@ function GamePage() {
             </View>
           </View>
 
+          <View style={s.imageAdWrap}>
+            <InlineAd adGroupId={IMAGE_AD} variant="expanded" impressFallbackOnMount />
+          </View>
+
           <View style={s.rewardCard}>
             <Text style={s.rewardTitle}>🪙 코인 보상</Text>
             <View style={s.rewardRow}>
@@ -276,10 +280,6 @@ function GamePage() {
             </View>
             <Text style={s.rewardNote}>최고기록 보너스는 갱신한 만큼만 더 받아요 (하루 최대 5코인)</Text>
           </View>
-
-          <View style={s.imageAdWrap}>
-            <InlineAd adGroupId={IMAGE_AD} variant="expanded" impressFallbackOnMount />
-          </View>
         </ScrollView>
 
         <View style={s.footer}>
@@ -294,6 +294,10 @@ function GamePage() {
   // ----- 플레이 화면 -----
   return (
     <View style={s.root}>
+      <View style={s.bannerWrap}>
+        <InlineAd adGroupId={BANNER_SUB} variant="expanded" impressFallbackOnMount />
+      </View>
+
       <View style={s.statusRow}>
         <Text style={s.roundTxt}>ROUND {round}</Text>
         <Text style={s.scoreTxt}>성공 {round - 1}</Text>
@@ -376,6 +380,7 @@ function ActionBtn({
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: BG },
+  bannerWrap: { overflow: 'hidden', backgroundColor: BG },
   scroll: { flex: 1 },
 
   // ready

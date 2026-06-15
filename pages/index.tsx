@@ -1,7 +1,8 @@
 import { InlineAd, share } from '@apps-in-toss/framework';
 import { createRoute } from '@granite-js/react-native';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
+  Animated,
   Modal,
   ScrollView,
   StyleSheet,
@@ -58,13 +59,50 @@ function HomePage() {
   );
   const passDaysLeft = hasPass ? Math.ceil((passUntil - Date.now()) / (24 * 60 * 60 * 1000)) : 0;
 
+  // 맨 아래 출석 현황판으로 유도하는 안내 알약 (스크롤로 도달하면 숨김)
+  const scrollRef = useRef<ScrollView>(null);
+  const [attendanceY, setAttendanceY] = useState<number | null>(null);
+  const [hintVisible, setHintVisible] = useState(true);
+  const bounceY = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(bounceY, { toValue: 4, duration: 500, useNativeDriver: true }),
+        Animated.timing(bounceY, { toValue: 0, duration: 500, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [bounceY]);
+
+  const onScroll = (e: { nativeEvent: { contentOffset: { y: number }; layoutMeasurement: { height: number } } }) => {
+    if (attendanceY === null) return;
+    const { contentOffset, layoutMeasurement } = e.nativeEvent;
+    const reached = attendanceY < contentOffset.y + layoutMeasurement.height - 80;
+    setHintVisible(!reached);
+  };
+
+  const scrollToAttendance = () => {
+    if (attendanceY === null) return;
+    scrollRef.current?.scrollTo({ y: Math.max(0, attendanceY - 16), animated: true });
+  };
+
   return (
     <View style={s.root}>
-      <View style={s.bannerWrap}>
-        <InlineAd adGroupId={BANNER_HOME} variant="expanded" impressFallbackOnMount />
-      </View>
+      <ScrollView
+        ref={scrollRef}
+        style={s.scroll}
+        contentContainerStyle={s.content}
+        showsVerticalScrollIndicator={false}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+      >
+        {/* 배너 광고 (스크롤형) */}
+        <View style={s.bannerWrap}>
+          <InlineAd adGroupId={BANNER_HOME} variant="expanded" impressFallbackOnMount />
+        </View>
 
-      <ScrollView style={s.scroll} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
         {/* 코인 지갑 */}
         <TouchableOpacity style={s.walletCard} onPress={() => navigation.navigate('/exchange')} activeOpacity={0.85}>
           <View style={s.walletLeft}>
@@ -147,17 +185,41 @@ function HomePage() {
           </TouchableOpacity>
         )}
 
+        {/* 공유하기 */}
+        <TouchableOpacity style={s.menuCard} onPress={onShare} activeOpacity={0.85}>
+          <View style={s.menuLeft}>
+            <Text style={s.menuEmoji}>🔗</Text>
+            <View style={s.menuTexts}>
+              <Text style={s.menuTitle}>친구에게 공유하기</Text>
+              <Text style={s.menuSub}>청기백기를 친구에게 소개해요</Text>
+            </View>
+          </View>
+          <Text style={s.menuArrow}>›</Text>
+        </TouchableOpacity>
+
         <View style={s.imageAdWrap}>
           <InlineAd adGroupId={IMAGE_AD} variant="expanded" impressFallbackOnMount />
         </View>
 
         {/* 출석 현황판 — 홈 맨 아래 인라인 */}
-        <AttendanceBoard />
+        <View onLayout={(e) => setAttendanceY(e.nativeEvent.layout.y)}>
+          <AttendanceBoard />
+        </View>
 
         <TouchableOpacity onPress={() => navigation.navigate('/info')} activeOpacity={0.6}>
           <Text style={s.footerTxt}>앱 정보</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* 맨 아래 출석 안내 알약 */}
+      {hintVisible && (
+        <View pointerEvents="box-none" style={s.hintWrap}>
+          <TouchableOpacity style={s.hintPill} onPress={scrollToAttendance} activeOpacity={0.85}>
+            <Animated.Text style={[s.hintArrow, { transform: [{ translateY: bounceY }] }]}>⬇</Animated.Text>
+            <Text style={s.hintText}>맨 아래에서 출석하고 1원 받기</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* 코인 안내 (최초 1회) */}
       <Modal visible={noticeVisible} transparent animationType="fade" onRequestClose={() => {}}>
@@ -293,6 +355,24 @@ const s = StyleSheet.create({
 
   imageAdWrap: { overflow: 'hidden', borderRadius: 12 },
   footerTxt: { textAlign: 'center', fontSize: 12, color: '#B0B8C1', paddingVertical: 8 },
+
+  hintWrap: { position: 'absolute', left: 0, right: 0, bottom: 16, alignItems: 'center' },
+  hintPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#191F28',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 999,
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  hintArrow: { fontSize: 14, color: '#fff' },
+  hintText: { fontSize: 13, fontWeight: '700', color: '#fff' },
 
   modalDim: {
     flex: 1,

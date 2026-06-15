@@ -88,11 +88,12 @@ function RankingPage() {
 
   return (
     <View style={s.root}>
-      <View style={s.bannerWrap}>
-        <InlineAd adGroupId={BANNER_SUB} variant="expanded" impressFallbackOnMount />
-      </View>
-
       <ScrollView style={s.scroll} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+        {/* 배너 광고 (스크롤형) */}
+        <View style={s.bannerWrap}>
+          <InlineAd adGroupId={BANNER_SUB} variant="expanded" impressFallbackOnMount />
+        </View>
+
         {/* 닉네임 */}
         <View style={s.nickCard}>
           {editingNick ? (

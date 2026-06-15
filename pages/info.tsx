@@ -4,7 +4,7 @@ import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-nati
 
 export const Route = createRoute('/info', { component: InfoPage });
 
-export const APP_VERSION = '1.4.0';
+export const APP_VERSION = '1.4.1';
 
 const PRIMARY = '#1B64DA';
 const BG = '#F4F7FB';
