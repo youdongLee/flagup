@@ -263,6 +263,32 @@ async function handleClaim(request, env) {
   return json({ ok: true, total, rewards: list });
 }
 
+// 실시간 이용자 하트비트 — last_seen 갱신 후 최근 2분 활동자 수 반환 (서명 불필요·저위험)
+async function handlePing(request, env) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ ok: false }, 400);
+  }
+  const { uuid } = body ?? {};
+  if (typeof uuid !== 'string' || uuid.length < 8 || uuid.length > 64) return json({ ok: false }, 400);
+  const now = Date.now();
+  await env.DB.prepare(
+    'INSERT INTO presence (id, last_seen) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET last_seen = ?',
+  )
+    .bind(uuid, now, now)
+    .run();
+  const row = await env.DB.prepare('SELECT COUNT(*) AS n FROM presence WHERE last_seen > ?')
+    .bind(now - 120000)
+    .first();
+  // 가끔 오래된 행 정리 (1시간 초과)
+  if (Math.random() < 0.1) {
+    await env.DB.prepare('DELETE FROM presence WHERE last_seen < ?').bind(now - 3600000).run();
+  }
+  return json({ ok: true, online: row.n });
+}
+
 // 지급 실패 롤백 — 방금 claim한 주(week)만 미수령으로 되돌린다 (과거 지급분은 보존)
 async function handleUnclaim(request, env) {
   let body;
@@ -428,6 +454,7 @@ export default {
       if (url.pathname === '/v1/unclaim' && request.method === 'POST') return await handleUnclaim(request, env);
       if (url.pathname === '/v1/login' && request.method === 'POST') return await handleLogin(request, env);
       if (url.pathname === '/v1/wallet/sync' && request.method === 'POST') return await handleWalletSync(request, env);
+      if (url.pathname === '/v1/ping' && request.method === 'POST') return await handlePing(request, env);
       if (url.pathname === '/terms' && request.method === 'GET') return html(TERMS_HTML);
       if (url.pathname === '/privacy' && request.method === 'GET') return html(PRIVACY_HTML);
       if (url.pathname === '/') return json({ ok: true, service: 'flagup-api' });

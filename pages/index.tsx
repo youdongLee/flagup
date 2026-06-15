@@ -15,6 +15,7 @@ import { Flags } from '../components/Flags';
 import { BANNER_HOME, IMAGE_AD } from '../data/ads';
 import { CHALLENGES, INITIAL_FLAGS } from '../data/commands';
 import { PASS_ENABLED, useGame } from '../stores/GameContext';
+import { useLiveUsers } from '../src/useLiveUsers';
 import { usePlayGate } from '../src/usePlayGate';
 
 const SHARE_MESSAGE =
@@ -44,6 +45,7 @@ function HomePage() {
   };
 
   const gate = usePlayGate(() => navigation.navigate('/game'));
+  const liveUsers = useLiveUsers();
   const [noticeVisible, setNoticeVisible] = useState(false);
 
   useEffect(() => {
@@ -102,6 +104,18 @@ function HomePage() {
         <View style={s.bannerWrap}>
           <InlineAd adGroupId={BANNER_HOME} variant="expanded" impressFallbackOnMount />
         </View>
+
+        {/* 실시간 이용자 수 */}
+        {liveUsers !== null && (
+          <View style={s.liveRow}>
+            <View style={s.liveDot} />
+            <Text style={s.liveTxt}>
+              {liveUsers >= 2
+                ? `지금 ${liveUsers.toLocaleString()}명이 함께 플레이 중`
+                : '지금 막 플레이가 시작됐어요'}
+            </Text>
+          </View>
+        )}
 
         {/* 코인 지갑 */}
         <TouchableOpacity style={s.walletCard} onPress={() => navigation.navigate('/exchange')} activeOpacity={0.85}>
@@ -262,6 +276,9 @@ const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: BG },
   bannerWrap: { overflow: 'hidden', backgroundColor: BG },
   scroll: { flex: 1 },
+  liveRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: -2 },
+  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#22C55E' },
+  liveTxt: { fontSize: 13, fontWeight: '700', color: '#22A557' },
   content: { paddingTop: 12, paddingBottom: 32, paddingHorizontal: 16, gap: 12 },
 
   walletCard: {

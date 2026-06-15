@@ -27,6 +27,13 @@ CREATE TABLE IF NOT EXISTS wallets (
   updated_at INTEGER NOT NULL DEFAULT 0
 );
 
+-- 실시간 이용자 수: 최근 활동 시각 기록(하트비트). 2분 이내 활동자 수를 "지금 플레이 중"으로 집계
+CREATE TABLE IF NOT EXISTS presence (
+  id TEXT PRIMARY KEY,
+  last_seen INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_presence_seen ON presence (last_seen);
+
 CREATE TABLE IF NOT EXISTS rl (
   uuid TEXT NOT NULL,
   day TEXT NOT NULL,
