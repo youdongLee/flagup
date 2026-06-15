@@ -110,7 +110,8 @@ async function handleScore(request, env) {
     return json({ ok: false, error: 'bad json' }, 400);
   }
   const { uuid, nickname, rounds, reactions, sig } = body ?? {};
-  if (typeof uuid !== 'string' || uuid.length < 16 || uuid.length > 64) return json({ ok: false }, 400);
+  // 식별자: 기기 UUID(36자) 또는 토스 로그인 'u:<userKey>'(짧음). 길이 하한을 낮춰 둘 다 허용
+  if (typeof uuid !== 'string' || uuid.length < 3 || uuid.length > 64) return json({ ok: false }, 400);
   if (typeof nickname !== 'string' || nickname.length < 1 || nickname.length > 16) return json({ ok: false }, 400);
   if (!Number.isInteger(rounds) || rounds < 1 || rounds > MAX_ROUNDS) return json({ ok: false }, 400);
 
@@ -272,7 +273,7 @@ async function handlePing(request, env) {
     return json({ ok: false }, 400);
   }
   const { uuid } = body ?? {};
-  if (typeof uuid !== 'string' || uuid.length < 8 || uuid.length > 64) return json({ ok: false }, 400);
+  if (typeof uuid !== 'string' || uuid.length < 3 || uuid.length > 64) return json({ ok: false }, 400);
   const day = dayKey();
   await env.DB.prepare('INSERT OR IGNORE INTO daily_players (day, id) VALUES (?, ?)').bind(day, uuid).run();
   const row = await env.DB.prepare('SELECT COUNT(*) AS n FROM daily_players WHERE day = ?').bind(day).first();
